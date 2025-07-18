@@ -1,0 +1,66 @@
+{
+  "server": {
+    "port": "PORT",
+    "host": "HOST",
+    "logLevel": "LOG_LEVEL"
+  },
+  "queue": {
+    "concurrency": "QUEUE_CONCURRENCY"
+  },
+  "leoCli": {
+    "threads": "LEO_CLI_THREADS",
+    "enableResourceProfiling": "ENABLE_RESOURCE_PROFILING",
+    "resourceProfilingInterval": "RESOURCE_PROFILING_INTERVAL",
+    "network": "NETWORK",
+    "endpoint": "ENDPOINT",
+    "privateKey": "PRIVATE_KEY"
+  },
+  "oracle": {
+    "aleoProgram": {
+      "rpcUrl": "ALEO_RPC_URL",
+      "name": "ORACLE_PROGRAM_NAME"
+    },
+    "verifer": {
+      "address": "ORACLE_VERIFER_ADDRESS",
+      "port": "ORACLE_VERIFER_PORT",
+      "https": "ORACLE_VERIFER_HTTPS",
+      "resolve": "ORACLE_VERIFER_RESOLVE"
+    },
+    "notarizer": {
+      "address": "ORACLE_NOTARIZER_ADDRESS",
+      "port": "ORACLE_NOTARIZER_PORT",
+      "https": "ORACLE_NOTARIZER_HTTPS",
+      "resolve": "ORACLE_NOTARIZER_RESOLVE"
+    },
+    "supportedCoins": "SUPPORTED_COINS"
+  },
+  "cron": {
+    "tokens": {
+      "BTC": {
+        "schedule": "CRON_BTC_SCHEDULE",
+        "enabled": "CRON_BTC_ENABLED"
+      },
+      "ETH": {
+        "schedule": "CRON_ETH_SCHEDULE",
+        "enabled": "CRON_ETH_ENABLED"
+      },
+      "ALEO": {
+        "schedule": "CRON_ALEO_SCHEDULE",
+        "enabled": "CRON_ALEO_ENABLED"
+      }
+    }
+  },
+  "discord": {
+    "webhookUrl": "DISCORD_WEBHOOK_URL",
+    "enableTransactionAlert": "ENABLE_TRANSACTION_ALERT",
+    "enablePriceUpdateAlert": "ENABLE_PRICE_UPDATE_ALERT",
+    "enableCronJobAlert": "ENABLE_CRON_JOB_ALERT",
+    "enableServiceStatusAlert": "ENABLE_SERVICE_STATUS_ALERT",
+    "enableSystemHealthAlert": "ENABLE_SYSTEM_HEALTH_ALERT",
+    "enableErrorAlert": "ENABLE_ERROR_ALERT"
+  },
+  "security": {
+    "internalApiKey": "INTERNAL_API_KEY",
+    "requireApiKey": "REQUIRE_API_KEY"
+  }
+}

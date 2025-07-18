@@ -1,0 +1,13 @@
+{
+  "server": {
+    "logLevel": "info"
+  },
+  "leoCli": {
+    "network": "mainnet"
+  },
+  "oracle": {
+    "aleoProgram": {
+      "name": "vlink_oracle_v0001.aleo"
+    }
+  }
+}

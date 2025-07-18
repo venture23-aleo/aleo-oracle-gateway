@@ -1,0 +1,86 @@
+{
+  "server": {
+    "port": 8080,
+    "host": "0.0.0.0",
+    "logLevel": "debug"
+  },
+  "queue": {
+    "concurrency": 1
+  },
+  "leoCli": {
+    "threads": 2,
+    "enableResourceProfiling": false,
+    "resourceProfilingInterval": 5000,
+    "network": "testnet",
+    "endpoint": "https://api.explorer.provable.com/v1",
+    "privateKey": "APrivateKey1zkp..."
+  },
+  "oracle": {
+    "attestationRequest": {
+      "url": "price_feed: {{COIN_NAME}}",
+      "requestMethod": "GET",
+      "selector": "weightedAvgPrice",
+      "responseFormat": "json",
+      "encodingOptions": {
+        "value": "float",
+        "precision": 6
+      },
+      "requestHeaders": {
+        "Accept": "*/*",
+        "DNT": "1",
+        "Upgrade-Insecure-Requests": "1",
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"
+      }
+    },
+    "verifer": {
+      "address": "aleorclvrfy.venture23.xyz",
+      "port": 443,
+      "https": true,
+      "resolve": false
+    },
+    "notarizer": {
+      "address": "aleo-oracle-be.venture23.xyz",
+      "port": 443,
+      "https": true,
+      "resolve": false
+    },
+    "aleoProgram": {
+      "name": "vlink_oracle_v0002.aleo",
+      "function": {
+        "setUniqueId": "set_unique_id",
+        "setSgxData": "set_data_sgx",
+        "setPublicKey": "set_key"
+      }
+    },
+    "supportedCoins": ["BTC", "ETH", "ALEO"]
+  },
+  "cron": {
+    "tokens": {
+      "BTC": {
+        "schedule": "0 0 */2 * * *",
+        "enabled": true
+      },
+      "ETH": {
+        "schedule": "0 0 */2 * * *",
+        "enabled": true
+      },
+      "ALEO": {
+        "schedule": "0 0 */3 * * *",
+        "enabled": true
+      }
+    }
+  },
+  "discord": {
+    "webhookUrl": "DISCORD_WEBHOOK_URL",
+    "enableTransactionAlert": true,
+    "enablePriceUpdateAlert": true,
+    "enableCronJobAlert": true,
+    "enableServiceStatusAlert": true,
+    "enableSystemHealthAlert": true,
+    "enableErrorAlert": true
+  },
+  "security": {
+    "internalApiKey": "your-secure-internal-api-key-here",
+    "requireApiKey": true
+  }
+}
