@@ -1,12 +1,12 @@
 # Aleo Oracle Gateway
 
-A TypeScript-based server that automatically updates token prices on the Aleo blockchain using SGX-attested price feeds. Developed by Venture23.
+A TypeScript-based server that automatically updates token prices on the Aleo blockchain using SGX-attested price feeds.
 
 ## 🚀 Quick Start
 
 ### 1. Install Dependencies
 ```bash
-npm install
+yarn install
 ```
 
 ### 2. Set Up Environment
@@ -21,10 +21,10 @@ Install the latest Leo CLI (v2.7.3) from [Leo documentation](https://docs.leo-la
 ### 4. Run the Server
 ```bash
 # Development
-npm run dev
+yarn dev
 
 # Production
-npm run build && npm start
+yarn build && yarn start
 ```
 
 ## 📋 What It Does
@@ -97,13 +97,13 @@ Most settings have sensible defaults in `config/default.json`.
 
 ### Available Scripts
 ```bash
-npm run dev          # Development with auto-restart
-npm run build        # Compile TypeScript
-npm run start        # Start production server
-npm run typecheck    # Type checking
-npm run lint         # Code linting
-npm run format       # Code formatting
-npm run code:fix     # Fix linting and formatting
+yarn dev             # Development with auto-restart
+yarn build           # Compile TypeScript
+yarn start           # Start production server
+yarn typecheck       # Type checking
+yarn lint            # Code linting
+yarn format          # Code formatting
+yarn code:fix        # Fix linting and formatting
 ```
 
 ### Code Quality
@@ -118,7 +118,7 @@ npm run code:fix     # Fix linting and formatting
 1. **Leo CLI not found** - Install latest Leo CLI v2.7.3
 2. **Private key error** - Verify `PRIVATE_KEY` is set correctly
 3. **Network errors** - Check connectivity to notarization servers
-4. **Type errors** - Run `npm run typecheck`
+4. **Type errors** - Run `yarn typecheck`
 
 ### Debug Mode
 Set `NODE_ENV=development` for detailed logging.
@@ -144,4 +144,3 @@ GPL-3.0 License
 
 ---
 
-**Developed by Venture23**
