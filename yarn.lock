@@ -540,10 +540,10 @@
   resolved "https://registry.yarnpkg.com/@ungap/structured-clone/-/structured-clone-1.3.0.tgz#d06bbb384ebcf6c505fde1c3d0ed4ddffe0aaff8"
   integrity sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==
 
-"@zkportal/aleo-oracle-sdk@^2.1.1":
-  version "2.1.1"
-  resolved "https://registry.yarnpkg.com/@zkportal/aleo-oracle-sdk/-/aleo-oracle-sdk-2.1.1.tgz#4cd3181fa3578c7f1c9a65918ab286af37ed42ae"
-  integrity sha512-PkAHgj2UO/HEz6Ti13A7tKn4ooxHfo4XhefaRf4zAz3S4X9v2Dln2nNSD/fD+3ad5lnianFM99U4gpBGmBD9pg==
+"@venture23-aleo/aleo-oracle-sdk@^1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@venture23-aleo/aleo-oracle-sdk/-/aleo-oracle-sdk-1.0.0.tgz#8518bbaeff801b39fa62f58503f4fd6fa6174586"
+  integrity sha512-TgR0yO3hiBxuhb6pj2WMdiiljyhMEtDgKkCaaJ2l95xBoRc/vF7U1qvkf8R6ErbWb8x0OXg/WfhpehA2BdudLA==
 
 accepts@~1.3.8:
   version "1.3.8"

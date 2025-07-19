@@ -1,4 +1,4 @@
-import { EnclaveInfo, OracleClient, type AttestationResponse } from '@zkportal/aleo-oracle-sdk';
+import { EnclaveInfo, OracleClient, type AttestationResponse } from '@venture23-aleo/aleo-oracle-sdk';
 import { createWriteStream, existsSync, mkdirSync, type WriteStream } from 'node:fs';
 import axios from 'axios';
 import {
