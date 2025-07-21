@@ -3,17 +3,17 @@ import { z } from 'zod';
 
 export const configSchema = z.object({
   server: z.object({
-    port: z.number().int().min(1).max(65535),
+    port: z.coerce.number().int().min(1).max(65535),
     host: z.string(),
     logLevel: z.enum(['debug', 'info', 'warn', 'error']),
   }),
   queue: z.object({
-    concurrency: z.number().int().min(1),
+    concurrency: z.coerce.number().int().min(1),
   }),
   leoCli: z.object({
-    threads: z.number().int().min(1),
-    enableResourceProfiling: z.boolean(),
-    resourceProfilingInterval: z.number().int().min(1000),
+    threads: z.coerce.number().int().min(1),
+    enableResourceProfiling: z.coerce.boolean(),
+    resourceProfilingInterval: z.coerce.number().int().min(1000),
     network: z.enum(['testnet', 'mainnet']),
     endpoint: z.string(),
     privateKey: z.string(),
@@ -26,21 +26,21 @@ export const configSchema = z.object({
       responseFormat: z.enum(['json', 'html']),
       encodingOptions: z.object({
         value: z.enum(['float', 'int', 'string']),
-        precision: z.number().int().min(0).max(12),
+        precision: z.coerce.number().int().min(0).max(12),
       }),
       requestHeaders: z.record(z.string(), z.string()),
     }),
     verifer: z.object({
       address: z.string().regex(/^[-a-zA-Z0-9.]+$/),
-      port: z.number().int().min(1).max(65535),
-      https: z.boolean(),
-      resolve: z.boolean(),
+      port: z.coerce.number().int().min(1).max(65535),
+      https: z.coerce.boolean(),
+      resolve: z.coerce.boolean(),
     }),
     notarizer: z.object({
       address: z.string().regex(/^[-a-zA-Z0-9.]+$/),
-      port: z.number().int().min(1).max(65535),
-      https: z.boolean(),
-      resolve: z.boolean(),
+      port: z.coerce.number().int().min(1).max(65535),
+      https: z.coerce.boolean(),
+      resolve: z.coerce.boolean(),
     }),
     aleoProgram: z.object({
       name: z.string().regex(/^[a-zA-Z0-9_\.]+$/),
@@ -82,38 +82,17 @@ export const configSchema = z.object({
 
   discord: z.object({
     webhookUrl: z.string().optional(),
-    enableTransactionAlert: z.preprocess((val: unknown) => {
-      if (typeof val === 'boolean') return val;
-      return val === 'true';
-    }, z.boolean()),
-    enablePriceUpdateAlert: z.preprocess((val: unknown) => {
-      if (typeof val === 'boolean') return val;
-      return val === 'true';
-    }, z.boolean()),
-    enableCronJobAlert: z.preprocess((val: unknown) => {
-      if (typeof val === 'boolean') return val;
-      return val === 'true';
-    }, z.boolean()),
-    enableServiceStatusAlert: z.preprocess((val: unknown) => {
-      if (typeof val === 'boolean') return val;
-      return val === 'true';
-    }, z.boolean()),
-    enableSystemHealthAlert: z.preprocess((val: unknown) => {
-      if (typeof val === 'boolean') return val;
-      return val === 'true';
-    }, z.boolean()),
-    enableErrorAlert: z.preprocess((val: unknown) => {
-      if (typeof val === 'boolean') return val;
-      return val === 'true';
-    }, z.boolean()),
+    enableTransactionAlert: z.coerce.boolean(),
+    enablePriceUpdateAlert: z.coerce.boolean(),
+    enableCronJobAlert: z.coerce.boolean(),
+    enableServiceStatusAlert: z.coerce.boolean(),
+    enableSystemHealthAlert: z.coerce.boolean(),
+    enableErrorAlert: z.coerce.boolean(),
   }),
   security: z
     .object({
       internalApiKey: z.string().min(1),
-      requireApiKey: z.preprocess((val: unknown) => {
-        if (typeof val === 'boolean') return val;
-        return val === 'true';
-      }, z.boolean()),
+      requireApiKey: z.coerce.boolean(),
     })
     .optional(),
 });
