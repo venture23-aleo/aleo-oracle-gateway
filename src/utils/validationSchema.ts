@@ -15,8 +15,7 @@ export const configSchema = z.object({
     enableResourceProfiling: z.coerce.boolean(),
     resourceProfilingInterval: z.coerce.number().int().min(1000),
     network: z.enum(['testnet', 'mainnet']),
-    endpoint: z.string(),
-    privateKey: z.string(),
+    endpoint: z.string()
   }),
   oracle: z.object({
     attestationRequest: z.object({

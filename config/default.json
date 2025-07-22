@@ -12,8 +12,7 @@
     "enableResourceProfiling": false,
     "resourceProfilingInterval": 5000,
     "network": "testnet",
-    "endpoint": "https://api.explorer.provable.com/v1",
-    "privateKey": "APrivateKey1zkp..."
+    "endpoint": "https://api.explorer.provable.com/v1"
   },
   "oracle": {
     "attestationRequest": {

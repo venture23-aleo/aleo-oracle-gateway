@@ -12,8 +12,7 @@
     "enableResourceProfiling": "ENABLE_RESOURCE_PROFILING",
     "resourceProfilingInterval": "RESOURCE_PROFILING_INTERVAL",
     "network": "NETWORK",
-    "endpoint": "ENDPOINT",
-    "privateKey": "PRIVATE_KEY"
+    "endpoint": "ENDPOINT"
   },
   "oracle": {
     "aleoProgram": {

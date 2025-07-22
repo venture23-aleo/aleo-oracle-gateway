@@ -97,11 +97,9 @@ const executeLeo = async ({
             leoCliConfig.network,
             '--endpoint',
             leoCliConfig.endpoint,
-            '--private-key',
-            leoCliConfig.privateKey,
-          '--broadcast',
-          '-y',
-          '-d',
+            '--broadcast',
+            '-y',
+            '-d'
         ],
         { env: { ...process.env, RAYON_NUM_THREADS: leoCliConfig.threads.toString() } }
       );
