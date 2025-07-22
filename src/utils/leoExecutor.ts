@@ -92,14 +92,14 @@ const executeLeo = async ({
           //   aleoProgramName,
           //   `${functionName}`,
           `${aleoProgramName}/${functionName}`,
-            ...inputs,
-            '--network',
-            leoCliConfig.network,
-            '--endpoint',
-            leoCliConfig.endpoint,
-            '--broadcast',
-            '-y',
-            '-d'
+          ...inputs,
+          '--network',
+          leoCliConfig.network,
+          '--endpoint',
+          leoCliConfig.endpoint,
+          '--broadcast',
+          '-y',
+          '-d',
         ],
         { env: { ...process.env, RAYON_NUM_THREADS: leoCliConfig.threads.toString() } }
       );

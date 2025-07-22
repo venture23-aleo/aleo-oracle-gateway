@@ -5,20 +5,24 @@ A TypeScript-based server that automatically updates token prices on the Aleo bl
 ## 🚀 Quick Start
 
 ### 1. Install Dependencies
+
 ```bash
 yarn install
 ```
 
 ### 2. Set Up Environment
+
 ```bash
 cp .env_sample .env
 # Edit .env and set your PRIVATE_KEY
 ```
 
 ### 3. Install Leo CLI
+
 Install the latest Leo CLI (v2.7.3) from [Leo documentation](https://docs.leo-lang.org/getting_started/installation)
 
 ### 4. Run the Server
+
 ```bash
 # Development
 yarn dev
@@ -38,10 +42,12 @@ yarn build && yarn start
 ## 🔧 Configuration
 
 ### Required Environment Variables
+
 - `PRIVATE_KEY` - Your Aleo private key (required)
 - `INTERNAL_API_KEY` - API key for authentication (required)
 
 ### Optional Overrides
+
 - `NODE_ENV` - Environment (development/production)
 - `PORT` - Server port (default: 8080)
 - `SUPPORTED_COINS` - Comma-separated list (default: BTC,ETH,ALEO)
@@ -52,11 +58,13 @@ Most settings have sensible defaults in `config/default.json`.
 ## 📡 API Endpoints
 
 ### Health & Status
+
 - `GET /api/health` - Server health check
 - `GET /api/oracle/status` - Oracle service status
 - `GET /api/oracle/stats` - Service statistics
 
 ### Oracle Operations
+
 - `POST /api/oracle/set-sgx-unique-id` - Initialize SGX unique ID
 - `POST /api/oracle/set-public-key` - Set public key
 - `POST /api/oracle/set-sgx-data/:coinName` - Update specific coin price
@@ -64,6 +72,7 @@ Most settings have sensible defaults in `config/default.json`.
 - `GET /api/oracle/coins` - List supported coins
 
 ### Cron Job Control
+
 - `POST /api/oracle/cron/start` - Start automated updates
 - `POST /api/oracle/cron/stop` - Stop automated updates
 - `GET /api/oracle/cron/status` - Cron job status
@@ -96,6 +105,7 @@ Most settings have sensible defaults in `config/default.json`.
 ## 🛠️ Development
 
 ### Available Scripts
+
 ```bash
 yarn dev             # Development with auto-restart
 yarn build           # Compile TypeScript
@@ -107,6 +117,7 @@ yarn code:fix        # Fix linting and formatting
 ```
 
 ### Code Quality
+
 - **TypeScript** for type safety
 - **ESLint** for code quality
 - **Prettier** for code formatting
@@ -115,12 +126,14 @@ yarn code:fix        # Fix linting and formatting
 ## 🐛 Troubleshooting
 
 ### Common Issues
+
 1. **Leo CLI not found** - Install latest Leo CLI v2.7.3
 2. **Private key error** - Verify `PRIVATE_KEY` is set correctly
 3. **Network errors** - Check connectivity to notarization servers
 4. **Type errors** - Run `yarn typecheck`
 
 ### Debug Mode
+
 Set `NODE_ENV=development` for detailed logging.
 
 ## 📊 Monitoring
@@ -143,4 +156,3 @@ Set `NODE_ENV=development` for detailed logging.
 GPL-3.0 License
 
 ---
-
