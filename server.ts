@@ -3,7 +3,6 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createWriteStream } from 'node:fs';
@@ -14,7 +13,6 @@ import { OracleService } from './src/services/oracleService.js';
 import { discordNotifier } from './src/utils/discordNotifier.js';
 import { serverConfig, oracleConfig, IS_DEVELOPMENT } from './src/config/index.js';
 
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
