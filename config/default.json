@@ -15,6 +15,7 @@
     "endpoint": "https://api.explorer.provable.com/v1"
   },
   "oracle": {
+    "verifyAttestation": true,
     "attestationRequest": {
       "url": "price_feed: {{COIN_NAME}}",
       "requestMethod": "GET",

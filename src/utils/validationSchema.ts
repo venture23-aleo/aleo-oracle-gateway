@@ -29,6 +29,7 @@ export const configSchema = z.object({
       }),
       requestHeaders: z.record(z.string(), z.string()),
     }),
+    verifyAttestation: z.coerce.boolean(),
     verifer: z.object({
       address: z.string().regex(/^[-a-zA-Z0-9.]+$/),
       port: z.coerce.number().int().min(1).max(65535),

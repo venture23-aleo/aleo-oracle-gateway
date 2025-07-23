@@ -56,6 +56,8 @@ export interface LeoExecutionParams {
   functionName: string;
 }
 
+const leoTransactionIdRegex = /at[0-9a-z]{50,}/;
+
 /**
  * Execute a Leo CLI command with process monitoring and retry logic
  *
@@ -117,7 +119,7 @@ const executeLeo = async ({
       leoProcess.stdout?.on('data', (data: Buffer) => {
         log(`${label} ${data}`);
         dataOutput += data.toString();
-        if (/at[0-9a-z]{50,}/.test(dataOutput)) {
+        if (leoTransactionIdRegex.test(dataOutput)) {
           leoProcess.kill();
         }
       });
@@ -132,12 +134,11 @@ const executeLeo = async ({
         if (leoCliConfig.enableResourceProfiling && monitor) {
           clearInterval(monitor);
           monitor = null;
+          resetIOTracking(leoProcess.pid!);
         }
-        resetIOTracking(leoProcess.pid!);
-
+        
         // Check if the transaction was successful despite the error code
-        const hasTransactionId =
-          /at[0-9a-z]{50,}/.test(dataOutput) || /at[0-9a-z]{50,}/.test(errorOutput);
+        const hasTransactionId = leoTransactionIdRegex.test(dataOutput) || leoTransactionIdRegex.test(errorOutput);
         const hasSuccessStatus =
           dataOutput.includes('status code 201') || errorOutput.includes('status code 201');
 
@@ -195,9 +196,6 @@ export const executeLeoWithQueue = async ({
  *
  */
 export const extractTransactionId = (leoResult: LeoExecutionResult): string | null => {
-  const regex = /at[0-9a-z]{50,}/;
-
-  const match = leoResult.data.match(regex) || leoResult.errorOutput?.match(regex);
-
+  const match = leoResult.data.match(leoTransactionIdRegex) || leoResult.errorOutput?.match(leoTransactionIdRegex);
   return match ? match[0] : null;
 };

@@ -342,7 +342,7 @@ class DiscordNotifier {
   }
 
   async sendTransactionAlert(
-    coinName: string,
+    title: string,
     txnId: string,
     status: 'pending' | 'confirmed' | 'failed',
     details: Record<string, any> = {}
@@ -371,13 +371,13 @@ class DiscordNotifier {
     }
 
     const embed: DiscordEmbed = {
-      title: `${emoji} Transaction Alert: ${coinName}`,
+      title: `${emoji} Transaction Alert: ${title}`,
       color,
       timestamp,
       fields: [
         {
-          name: '🪙 Coin',
-          value: coinName,
+          name: '🪙 Title',
+          value: title,
           inline: true,
         },
         {

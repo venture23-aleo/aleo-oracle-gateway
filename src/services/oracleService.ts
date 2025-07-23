@@ -329,6 +329,11 @@ export class OracleService implements OracleServiceInterface {
       const transactionId = extractTransactionId(leoResult as LeoExecutionResult);
       if (transactionId) {
         log(`${requestString} Transaction ID: ${transactionId}`);
+
+        // Send success notification with transaction details
+        await discordNotifier.sendTransactionAlert('sgx_unique_id', transactionId, 'confirmed', {
+          uniqueId,
+        });
       } else {
         throw new Error('Transaction ID not found in leo output.');
       }
@@ -366,6 +371,11 @@ export class OracleService implements OracleServiceInterface {
       const transactionId = extractTransactionId(leoResult as LeoExecutionResult);
       if (transactionId) {
         log(`${requestString} Transaction ID: ${transactionId}`);
+
+        // Send success notification with transaction details
+        await discordNotifier.sendTransactionAlert('sgx_public_key', transactionId, 'confirmed', {
+          signerPubKey,
+        });
       } else {
         throw new Error('Transaction ID not found in leo output.');
       }
@@ -392,20 +402,26 @@ export class OracleService implements OracleServiceInterface {
       const attestationRequest = this.buildAttestationRequest(coinName);
       logDebug(`${requestString} Attestation Request: ${JSON.stringify(attestationRequest)}`);
 
-      // const result: AttestationResponse[] = await this.oracleClient.notarize(attestationRequest, { timeout: 20000000 });
-      const result: AttestationResponse = await this.requestNotarizer(
-        '/notarize',
-        'post',
-        attestationRequest
-      );
+      let result: AttestationResponse | null = null;
 
-      // logDebug('Attestation result', result);
+      if (oracleConfig.verifyAttestation) {
+        const notarizeResult = await this.oracleClient.notarize(attestationRequest);
+        logDebug(`[setSgxData] Attestation result: ${JSON.stringify(notarizeResult)}`);
+        if (!notarizeResult || notarizeResult.length === 0) {
+          throw new Error("No attestation response received");
+        }
+        result = notarizeResult[0]!;
+      } else {
+        result = await this.requestNotarizer('/notarize', 'post', attestationRequest);
+      }
+
+      logDebug(`[setSgxData] Attestation result: ${JSON.stringify(result)}`);
 
       const {
         oracleData: { report, userData, signature, address, requestHash },
         timestamp,
         attestationData,
-      } = result;
+      } = result as AttestationResponse;
 
       logDebug(`${requestString} Attestation data: ${attestationData}`);
       await this.trackCoinPrice({ coinName, timestamp, price: attestationData });
