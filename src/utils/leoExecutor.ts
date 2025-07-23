@@ -17,10 +17,7 @@ import { monitorProcessResources, resetIOTracking } from './processMonitor.js';
  * Global execution queue for Leo CLI commands
  * Ensures controlled concurrency and prevents system overload
  */
-const queue = new PQueue({ concurrency: queueConfig.concurrency });
-
-// Export the queue for use in other modules
-export { queue };
+export const queue = new PQueue({ concurrency: queueConfig.concurrency });
 
 /**
  * Aleo program name from configuration
