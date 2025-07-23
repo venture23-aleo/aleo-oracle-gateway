@@ -6,12 +6,12 @@ import morgan from 'morgan';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createWriteStream } from 'node:fs';
-import { log, logError, setupLogging } from './src/utils/logger.js';
-import { oracleRoutes } from './src/routes/oracle.js';
-import { healthRoutes } from './src/routes/health.js';
-import { OracleService } from './src/services/oracleService.js';
-import { discordNotifier } from './src/utils/discordNotifier.js';
-import { serverConfig, oracleConfig, IS_DEVELOPMENT } from './src/config/index.js';
+import { log, logError, setupLogging } from '@utils/logger.js';
+import { oracleRoutes } from '@routes/oracle.js';
+import { healthRoutes } from '@routes/health.js';
+import { OracleService } from '@services/oracleService.js';
+import { discordNotifier } from '@utils/discordNotifier.js';
+import { serverConfig, oracleConfig, IS_DEVELOPMENT } from '@configs/index.js';
 
 
 const __filename = fileURLToPath(import.meta.url);

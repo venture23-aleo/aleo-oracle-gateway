@@ -10,7 +10,7 @@
 
 import { readFileSync } from 'node:fs';
 import pidusage from 'pidusage';
-import { log } from './logger.js';
+import { log } from '@utils/logger.js';
 
 /**
  * I/O Statistics interface for process monitoring

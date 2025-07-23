@@ -8,10 +8,10 @@
  */
 import { spawn, type ChildProcess } from 'node:child_process';
 import PQueue from 'p-queue';
-import { log, logDebug, logError } from './logger.js';
-import { leoCliConfig, oracleConfig, queueConfig } from '../config/index.js';
-import { retry } from './pRetry.js';
-import { monitorProcessResources, resetIOTracking } from './processMonitor.js';
+import { log, logDebug, logError } from '@utils/logger.js';
+import { leoCliConfig, oracleConfig, queueConfig } from '@configs/index.js';
+import { retry } from '@utils/pRetry.js';
+import { monitorProcessResources, resetIOTracking } from '@utils/processMonitor.js';
 
 /**
  * Global execution queue for Leo CLI commands

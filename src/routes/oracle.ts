@@ -1,9 +1,9 @@
 import express, { type Request, type Response, type NextFunction, type Router } from 'express';
-import { logError } from '../utils/logger.js';
-import { discordNotifier } from '../utils/discordNotifier.js';
-import { validateInternalApiKey } from '../middleware/apiKeyMiddleware.js';
-import { oracleConfig } from '../config/index.js';
-import type { OracleServiceInterface } from '../services/oracleService.js';
+import { logError } from '@utils/logger.js';
+import { discordNotifier } from '@utils/discordNotifier.js';
+import { validateInternalApiKey } from '@middlewares/apiKeyMiddleware.js';
+import { oracleConfig } from '@configs/index.js';
+import type { OracleServiceInterface } from '@services/oracleService.js';
 
 const { supportedCoins: COIN_LIST } = oracleConfig;
 

@@ -28,7 +28,25 @@
     "removeComments": false,
     "noEmitOnError": true,
     "incremental": true,
-    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "baseUrl": "./",
+    "paths": {
+      "@configs/*": [
+        "src/configs/*"
+      ],
+      "@middlewares/*": [
+        "src/middlewares/*"
+      ],
+      "@services/*": [
+        "src/services/*"
+      ],
+      "@utils/*": [
+        "src/utils/*"
+      ],
+      "@routes/*": [
+        "src/routes/*"
+      ]
+    }
   },
   "include": ["src/**/*", "server.ts"],
   "exclude": ["node_modules", "dist", "logs", "*.js", "*.json", "*.txt", "*.md"]

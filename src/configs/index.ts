@@ -1,5 +1,5 @@
 import config from 'config';
-import { configSchema } from '../utils/validationSchema.js';
+import { configSchema } from '@utils/validationSchema.js';
 
 const rawConfig = config.util.toObject();
 const result = configSchema.safeParse(rawConfig);

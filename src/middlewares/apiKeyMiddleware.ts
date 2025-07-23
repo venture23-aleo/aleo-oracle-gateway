@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
-import { log, logError } from '../utils/logger.js';
-import { securityConfig } from '../config/index.js';
+import { log, logError } from '@utils/logger.js';
+import { securityConfig } from '@configs/index.js';
 
 /**
  * Middleware to validate internal API key from request headers

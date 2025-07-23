@@ -9,11 +9,11 @@ import {
   executeLeoWithQueue,
   extractTransactionId,
   type LeoExecutionResult,
-} from '../utils/leoExecutor.js';
-import { log, logDebug, logError, logWarn } from '../utils/logger.js';
-import { discordNotifier } from '../utils/discordNotifier.js';
-import { cronConfig, oracleConfig } from '../config/index.js';
-import { retry } from '../utils/pRetry.js';
+} from '@utils/leoExecutor.js';
+import { log, logDebug, logError, logWarn } from '@utils/logger.js';
+import { discordNotifier } from '@utils/discordNotifier.js';
+import { cronConfig, oracleConfig } from '@configs/index.js';
+import { retry } from '@utils/pRetry.js';
 import { CronJob, validateCronExpression } from 'cron';
 
 /**

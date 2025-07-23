@@ -1,6 +1,6 @@
 import axios from 'axios';
-import { log, logError } from './logger.js';
-import { discordConfig } from '../config/index.js';
+import { log, logError } from '@utils/logger.js';
+import { discordConfig } from '@configs/index.js';
 
 interface DiscordEmbed {
   title: string;

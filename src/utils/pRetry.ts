@@ -1,5 +1,5 @@
 import pRetry, { type FailedAttemptError } from 'p-retry';
-import { logWarn } from './logger.js';
+import { logWarn } from '@utils/logger.js';
 
 interface RetryOptions {
   func: () => Promise<any>;

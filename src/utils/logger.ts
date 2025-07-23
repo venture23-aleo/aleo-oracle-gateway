@@ -10,7 +10,7 @@
 
 import winston from 'winston';
 import { join } from 'node:path';
-import { serverConfig } from '../config/index.js';
+import { serverConfig } from '@configs/index.js';
 
 /**
  * Global logger instance
