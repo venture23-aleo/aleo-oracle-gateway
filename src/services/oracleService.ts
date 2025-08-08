@@ -15,14 +15,15 @@ import { discordNotifier } from '@utils/discordNotifier.js';
 import { cronConfig, oracleConfig } from '@configs/index.js';
 import { retry } from '@utils/pRetry.js';
 import { CronJob, validateCronExpression } from 'cron';
+import z from 'zod';
 
 /**
  * Oracle configuration
  * @type {OracleConfig}
  */
 const {
-  notarizer: NOTARIZER_CONFIG,
-  verifer: VERIFIER_CONFIG,
+  notarizers,
+  verifier,
   supportedCoins: COIN_LIST,
   aleoProgram: {
     function: {
@@ -101,9 +102,9 @@ export interface OracleServiceInterface {
   /** Initialize the service */
   initialize(): Promise<void>;
   /** Set the SGX unique ID */
-  setSgxUniqueId(): Promise<any>;
+  setSgxUniqueId(uniqueId: string): Promise<any>;
   /** Set the public key */
-  setPublicKey(): Promise<any>;
+  setSignerPublicKey(publicKey: string): Promise<any>;
   /** Set the SGX data */
   setSgxData(coinName: string): Promise<any>;
   /** Start the cron job */
@@ -119,18 +120,23 @@ export interface OracleServiceInterface {
 }
 
 export class OracleService implements OracleServiceInterface {
-  private oracleClient: OracleClient;
+  // private oracleClient: OracleClient;
   public isInitialized: boolean;
   private stats: Record<string, CoinStats | null>;
   private cronJob: Record<string, CronJob | null>;
   private coinPriceStream: Record<string, WriteStream>;
 
   constructor() {
-    this.oracleClient = new OracleClient({
-      notarizer: NOTARIZER_CONFIG,
-      verifier: VERIFIER_CONFIG,
-      quiet: false,
-    });
+    // DEFAULT_NOTARIZATION_BACKENDS.splice(0, 2);
+    // notarizers.forEach((notarizer) => {
+    //   DEFAULT_NOTARIZATION_BACKENDS.push({...notarizer, init: DEFAULT_FETCH_OPTIONS});
+    // })
+    // console.log(DEFAULT_NOTARIZATION_BACKENDS);
+
+    // this.oracleClient = new OracleClient({
+    //   verifier:verifier,
+    //   quiet: false,
+    // });
 
     // Initialize flag
     this.isInitialized = false;
@@ -204,8 +210,9 @@ export class OracleService implements OracleServiceInterface {
    * @returns Axios response
    */
   requestNotarizer = async (endpoint: string, method: 'get' | 'post' = 'post', payload?: any) => {
-    const protocol = NOTARIZER_CONFIG.https ? 'https' : 'http';
-    const url = `${protocol}://${NOTARIZER_CONFIG.address}:${NOTARIZER_CONFIG.port}${endpoint}`;
+    const notarizerInfo = notarizers[0];
+    const protocol = notarizerInfo!.https ? 'https' : 'http';
+    const url = `${protocol}://${notarizerInfo!.address}:${notarizerInfo!.port}${endpoint}`;
     logDebug(
       `[requestNotarizer] ${method.toUpperCase()} ${url} with payload: ${JSON.stringify(payload)}`
     );
@@ -234,8 +241,8 @@ export class OracleService implements OracleServiceInterface {
    * @returns Axios response
    */
   requestVerifier = async (endpoint: string, method: 'get' | 'post' = 'post', payload?: any) => {
-    const protocol = VERIFIER_CONFIG.https ? 'https' : 'http';
-    const url = `${protocol}://${VERIFIER_CONFIG.address}:${VERIFIER_CONFIG.port}${endpoint}`;
+    const protocol = verifier.https ? 'https' : 'http';
+    const url = `${protocol}://${verifier.address}:${verifier.port}${endpoint}`;
     logDebug(
       `[requestVerifier] ${method.toUpperCase()} ${url} with payload: ${JSON.stringify(payload)}`
     );
@@ -275,48 +282,13 @@ export class OracleService implements OracleServiceInterface {
     }
   }
 
-  async getEnclaveInfo(): Promise<EnclaveInfo> {
-    const enclavesInfo: EnclaveInfo[] = await retry({
-      func: () => this.oracleClient.enclavesInfo(),
-      label: 'ENCLAVES_INFO',
-      retries: 3,
-    });
-    if (!enclavesInfo.length) {
-      throw new Error('Enclave info not found');
-    }
-    return enclavesInfo[0]!;
-  }
-
-  async compareSgxUniqueId(uniqueId: string): Promise<boolean> {
-    const enclaveInfo = await this.getEnclaveInfo();
-    const aleoInfo = enclaveInfo.info.aleo;
-
-    // Type guard to check if aleoInfo has uniqueId property
-    if ('uniqueId' in aleoInfo) {
-      return uniqueId === aleoInfo.uniqueId;
-    }
-
-    throw new Error('Enclave info does not contain uniqueId');
-  }
-
   /**
    * Set the SGX unique ID
    * @returns The success, unique ID, and transaction ID
    */
-  async setSgxUniqueId(): Promise<{ success: boolean; uniqueId: string; transactionId: string }> {
+  async setSgxUniqueId(uniqueId: string): Promise<{ success: boolean; uniqueId: string; transactionId: string }> {
     const requestString = '[setSgxUniqueId]';
     try {
-      log(`${requestString} Setting SGX unique id in aleo program...`);
-      const enclaveInfo = await this.getEnclaveInfo();
-
-      const aleoInfo = enclaveInfo.info.aleo;
-
-      // Type guard to check if aleoInfo has uniqueId property
-      if (!('uniqueId' in aleoInfo)) {
-        throw new Error('Enclave info does not contain uniqueId');
-      }
-
-      const { uniqueId } = aleoInfo;
 
       log(`${requestString} SGX Unique Id: ${uniqueId}`);
 
@@ -329,7 +301,6 @@ export class OracleService implements OracleServiceInterface {
       const transactionId = extractTransactionId(leoResult as LeoExecutionResult);
       if (transactionId) {
         log(`${requestString} Transaction ID: ${transactionId}`);
-
         // Send success notification with transaction details
         await discordNotifier.sendTransactionAlert('sgx_unique_id', transactionId, 'confirmed', {
           uniqueId,
@@ -353,14 +324,9 @@ export class OracleService implements OracleServiceInterface {
    * Set the public key
    * @returns The success, signer public key, and transaction ID
    */
-  async setPublicKey(): Promise<{ success: boolean; signerPubKey: string; transactionId: string }> {
-    const requestString = '[setPublicKey]';
+  async setSignerPublicKey(signerPubKey: string): Promise<{ success: boolean; signerPubKey: string; transactionId: string }> {
+    const requestString = '[setSignerPublicKey]';
     try {
-      log(`${requestString} Setting public key in aleo program`);
-      const enclaveInfo = await this.getEnclaveInfo();
-
-      const { signerPubKey } = enclaveInfo;
-      log(`${requestString} Signer Public key: ${signerPubKey}`);
 
       const leoResult = await executeLeoWithQueue({
         inputs: [signerPubKey, 'true'],
@@ -384,11 +350,22 @@ export class OracleService implements OracleServiceInterface {
     } catch (error) {
       logError(`${requestString} error setting public key`, error as Error);
       await discordNotifier.sendErrorAlert(error as Error, {
-        operation: 'setPublicKey',
+        operation: 'setSignerPublicKey',
         requestString,
       });
       throw error;
     }
+  }
+
+  shuffleNotarizers(): typeof notarizers {
+    const shuffled = [...notarizers];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
+    }
+
+    logDebug(`Shuffled notarizers: ${JSON.stringify(shuffled)}`);
+    return shuffled;
   }
 
   /**
@@ -402,51 +379,91 @@ export class OracleService implements OracleServiceInterface {
       const attestationRequest = this.buildAttestationRequest(coinName);
       logDebug(`${requestString} Attestation Request: ${JSON.stringify(attestationRequest)}`);
 
-      let result: AttestationResponse | null = null;
+      const shuffledNotarizers = this.shuffleNotarizers();
 
-      if (oracleConfig.verifyAttestation) {
-        const notarizeResult = await this.oracleClient.notarize(attestationRequest);
-        logDebug(`[setSgxData] Attestation result: ${JSON.stringify(notarizeResult)}`);
-        if (!notarizeResult || notarizeResult.length === 0) {
-          throw new Error("No attestation response received");
+      let success = false;
+
+      let response = null;
+
+      while (shuffledNotarizers.length > 0 && !success) {
+
+        try {
+          const randomlySelectedIndex = Math.floor(Math.random() * shuffledNotarizers.length);
+
+          const selectedNotarizer = shuffledNotarizers[randomlySelectedIndex];
+
+          shuffledNotarizers.splice(randomlySelectedIndex, 1);
+
+          logDebug(`${requestString} Selected Notarizer: ${JSON.stringify(selectedNotarizer)}`);
+
+          const oracleClient = new OracleClient({
+            notarizer: selectedNotarizer!,
+            verifier: oracleConfig.verifier,
+            quiet: false,
+          })
+
+          const notarizeResult = await oracleClient.notarize(attestationRequest);
+          // logDebug(`[setSgxData] Attestation result: ${JSON.stringify(notarizeResult)}`);
+
+          if (!notarizeResult || notarizeResult.length === 0) {
+            throw new Error("No notarization result received");
+          }
+
+          const result = notarizeResult[0] as AttestationResponse;
+
+          const {
+            oracleData: { report, userData, signature, address, requestHash },
+            timestamp,
+            attestationData,
+          } = result;
+
+          logDebug(`${requestString} Attestation data: ${attestationData}`);
+          await this.trackCoinPrice({ coinName, timestamp, price: attestationData });
+
+          const leoResult = await executeLeoWithQueue({
+            inputs: [userData, report, signature, address],
+            functionName: SET_SGX_DATA_FUNCTION_NAME,
+            label: `SET_SGX_DATA:${coinName}`,
+          });
+
+          const transactionId = extractTransactionId(leoResult as LeoExecutionResult);
+          if (transactionId) {
+            log(`${requestString} Transaction ID: ${transactionId}`);
+
+            // Send success notification with transaction details
+            await discordNotifier.sendTransactionAlert(coinName, transactionId, 'confirmed', {
+              enclaveUrl: result.enclaveUrl,
+              price: attestationData,
+              requestHash,
+              timestamp,
+            });
+
+            success = true;
+
+            response = { coinName, txnId: transactionId, errorMsg: null }
+          } else {
+            throw new Error('Transaction ID not found in leo output.');
+          }
+          
+        } catch (error) {
+          success = false;
+          logError(`${requestString} Error setting SGX data with notarizer:`, error as Error);
+          log(`${requestString} Trying next notarizer...`);
         }
-        result = notarizeResult[0]!;
-      } else {
-        result = await this.requestNotarizer('/notarize', 'post', attestationRequest);
       }
 
-      logDebug(`[setSgxData] Attestation result: ${JSON.stringify(result)}`);
-
-      const {
-        oracleData: { report, userData, signature, address, requestHash },
-        timestamp,
-        attestationData,
-      } = result as AttestationResponse;
-
-      logDebug(`${requestString} Attestation data: ${attestationData}`);
-      await this.trackCoinPrice({ coinName, timestamp, price: attestationData });
-
-      const leoResult = await executeLeoWithQueue({
-        inputs: [userData, report, signature, address],
-        functionName: SET_SGX_DATA_FUNCTION_NAME,
-        label: `SET_SGX_DATA:${coinName}`,
-      });
-
-      const transactionId = extractTransactionId(leoResult as LeoExecutionResult);
-      if (transactionId) {
-        log(`${requestString} Transaction ID: ${transactionId}`);
-
-        // Send success notification with transaction details
-        await discordNotifier.sendTransactionAlert(coinName, transactionId, 'confirmed', {
-          price: attestationData,
-          requestHash,
-          timestamp,
+      if(!success) {
+        const errorMsg = 'Failed to set SGX data after trying all notarizers';
+        logError(`${requestString} ${errorMsg}`);
+        await discordNotifier.sendErrorAlert(new Error(errorMsg), {
+          operation: 'setSgxData',
+          coinName,
         });
-
-        return { coinName, txnId: transactionId, errorMsg: null };
-      } else {
-        throw new Error('Transaction ID not found in leo output.');
+        return { coinName, txnId: null, errorMsg };
       }
+
+      return response as SgxDataResult;
+
     } catch (error) {
       logError(`${requestString} error setting sgx data`, error as Error);
 
@@ -487,7 +504,7 @@ export class OracleService implements OracleServiceInterface {
     );
 
     // Send started notification
-    await discordNotifier.sendCronJobAlert('price_update', 'started', null, null);
+    await discordNotifier.sendCronJobAlert(`${coinName} price_update`, 'started', null, null);
 
     let successCount = 0;
     let errorCount = 0;
@@ -519,7 +536,7 @@ export class OracleService implements OracleServiceInterface {
       );
 
       // Send success notification
-      await discordNotifier.sendCronJobAlert('price_update', 'success', null, duration);
+      await discordNotifier.sendCronJobAlert(`${coinName} price_update`, 'success', null, duration);
     } else {
       this.stats[coinName].failedRuns++;
       this.stats[coinName].lastError = new Date();
@@ -529,7 +546,7 @@ export class OracleService implements OracleServiceInterface {
 
       // Send failure notification
       await discordNotifier.sendCronJobAlert(
-        'price_update',
+        `${coinName} price_update`,
         'failed',
         new Error(`${errorCount} coins failed to update`),
         duration

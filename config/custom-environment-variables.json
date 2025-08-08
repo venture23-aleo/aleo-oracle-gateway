@@ -19,17 +19,11 @@
       "rpcUrl": "ALEO_RPC_URL",
       "name": "ORACLE_PROGRAM_NAME"
     },
-    "verifer": {
-      "address": "ORACLE_VERIFER_ADDRESS",
-      "port": "ORACLE_VERIFER_PORT",
-      "https": "ORACLE_VERIFER_HTTPS",
-      "resolve": "ORACLE_VERIFER_RESOLVE"
-    },
-    "notarizer": {
-      "address": "ORACLE_NOTARIZER_ADDRESS",
-      "port": "ORACLE_NOTARIZER_PORT",
-      "https": "ORACLE_NOTARIZER_HTTPS",
-      "resolve": "ORACLE_NOTARIZER_RESOLVE"
+    "verifier": {
+      "address": "ORACLE_VERIFIER_ADDRESS",
+      "port": "ORACLE_VERIFIER_PORT",
+      "https": "ORACLE_VERIFIER_HTTPS",
+      "resolve": "ORACLE_VERIFIER_RESOLVE"
     },
     "supportedCoins": "SUPPORTED_COINS"
   },

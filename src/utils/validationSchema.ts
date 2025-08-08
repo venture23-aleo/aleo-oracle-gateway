@@ -30,18 +30,18 @@ export const configSchema = z.object({
       requestHeaders: z.record(z.string(), z.string()),
     }),
     verifyAttestation: z.coerce.boolean(),
-    verifer: z.object({
+    verifier: z.object({
       address: z.string().regex(/^[-a-zA-Z0-9.]+$/),
       port: z.coerce.number().int().min(1).max(65535),
       https: z.coerce.boolean(),
       resolve: z.coerce.boolean(),
     }),
-    notarizer: z.object({
+    notarizers: z.array(z.object({
       address: z.string().regex(/^[-a-zA-Z0-9.]+$/),
       port: z.coerce.number().int().min(1).max(65535),
       https: z.coerce.boolean(),
       resolve: z.coerce.boolean(),
-    }),
+    })),
     aleoProgram: z.object({
       name: z.string().regex(/^[a-zA-Z0-9_\.]+$/),
       function: z.object({

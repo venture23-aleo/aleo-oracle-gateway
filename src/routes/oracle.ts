@@ -51,8 +51,26 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
   // Set SGX Unique ID
   router.post('/set-sgx-unique-id', async (req: Request, res: Response) => {
     try {
-      const result = await oracleService.setSgxUniqueId();
-      res.json({
+      if(process.env.NODE_ENV === 'production') {
+        return res.status(403).json({
+          success: false,
+          message: 'Setting SGX Unique ID is not allowed in production environment',
+          error: 'Forbidden in production',
+        });
+      }
+      const { uniqueId } = req.body;
+      if (!uniqueId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Unique ID is required',
+          error: 'Unique ID is required',
+        })
+      }
+
+      console.log(`Setting SGX Unique ID: ${uniqueId}`);
+      
+      const result = await oracleService.setSgxUniqueId(uniqueId);
+      return res.json({
         success: true,
         message: 'SGX Unique ID set successfully',
         data: result,
@@ -72,10 +90,27 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
   });
 
   // Set Public Key
-  router.post('/set-public-key', async (req: Request, res: Response) => {
+  router.post('/set-signer-public-key', async (req: Request, res: Response) => {
     try {
-      const result = await oracleService.setPublicKey();
-      res.json({
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(403).json({
+          success: false,
+          message: 'Setting SGX Unique ID is not allowed in production environment',
+          error: 'Forbidden in production',
+        });
+      }
+      const { signerPubKey } = req.body;
+      
+      if (!signerPubKey) {
+        return res.status(400).json({
+          success: false,
+          message: 'Public key is required',
+          error: 'Public key is required',
+        });
+      }
+
+      const result = await oracleService.setSignerPublicKey(signerPubKey);
+      return res.json({
         success: true,
         message: 'Public key set successfully',
         data: result,
@@ -83,12 +118,12 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
     } catch (error) {
       logError('API Error: setPublicKey', error as Error);
       await discordNotifier.sendErrorAlert(error as Error, {
-        operation: 'api_set_public_key',
-        endpoint: '/api/oracle/set-public-key',
+        operation: 'api_set_signer_public_key',
+        endpoint: '/api/oracle/set-signer-public-key',
       });
       res.status(500).json({
         success: false,
-        message: 'Failed to set public key',
+        message: 'Failed to set signer public key',
         error: (error as Error).message,
       });
     }

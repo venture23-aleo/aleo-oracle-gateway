@@ -116,9 +116,9 @@ const executeLeo = async ({
       leoProcess.stdout?.on('data', (data: Buffer) => {
         log(`${label} ${data}`);
         dataOutput += data.toString();
-        if (leoTransactionIdRegex.test(dataOutput)) {
-          leoProcess.kill();
-        }
+        // if (leoTransactionIdRegex.test(dataOutput)) {
+        //   leoProcess.kill();
+        // }
       });
 
       leoProcess.stderr?.on('data', (data: Buffer) => {

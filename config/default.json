@@ -32,18 +32,26 @@
         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"
       }
     },
-    "verifer": {
+    "verifier": {
       "address": "aleorclvrfy.venture23.xyz",
       "port": 443,
       "https": true,
       "resolve": false
     },
-    "notarizer": {
-      "address": "aleo-oracle-be.venture23.xyz",
-      "port": 443,
-      "https": true,
-      "resolve": false
-    },
+    "notarizers": [
+      {
+        "address": "aleo-oracle-be.venture23.xyz",
+        "port": 443,
+        "https": true,
+        "resolve": false
+      },
+      {
+        "address": "20.51.202.128",
+        "port": 8000,
+        "https": false,
+        "resolve": false
+      }
+    ],
     "aleoProgram": {
       "name": "vlink_oracle_v0002.aleo",
       "function": {
@@ -52,7 +60,11 @@
         "setPublicKey": "set_key"
       }
     },
-    "supportedCoins": ["BTC", "ETH", "ALEO"]
+    "supportedCoins": [
+      "BTC",
+      "ETH",
+      "ALEO"
+    ]
   },
   "cron": {
     "tokens": {
