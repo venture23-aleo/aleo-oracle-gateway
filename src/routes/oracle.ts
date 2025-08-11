@@ -81,7 +81,7 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
         operation: 'api_set_sgx_unique_id',
         endpoint: '/api/oracle/set-sgx-unique-id',
       });
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: 'Failed to set SGX Unique ID',
         error: (error as Error).message,
@@ -121,7 +121,7 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
         operation: 'api_set_signer_public_key',
         endpoint: '/api/oracle/set-signer-public-key',
       });
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: 'Failed to set signer public key',
         error: (error as Error).message,
