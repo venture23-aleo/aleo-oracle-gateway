@@ -75,23 +75,34 @@ jobs:
           EOF
           chmod +x generate_jwt.sh
           ./generate_jwt.sh "${{ secrets.GH_APP_ID }}" "${{ secrets.GH_APP_PRIVATE_KEY }}"
+      
+      - name: Get installation ID dynamically
+        id: get-installation
+        run: |
+          INSTALLATION_ID=$(curl -s -H "Authorization: Bearer $JWT" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/app/installations | jq -r '.[0].id')
+          
+          echo "INSTALLATION_ID=$INSTALLATION_ID" >> $GITHUB_ENV
+          echo "Found installation ID: $INSTALLATION_ID"
 
-      - name: Get installation token
+      - name: Get installation access token
         id: get-token
         run: |
           TOKEN=$(curl -s -X POST \
             -H "Authorization: Bearer $JWT" \
             -H "Accept: application/vnd.github+json" \
-            https://api.github.com/app/installations/${{ secrets.GH_APP_INSTALLATION_ID }}/access_tokens \
-            | jq -r .token)
+            https://api.github.com/app/installations/$INSTALLATION_ID/access_tokens | jq -r .token)
+          
           echo "APP_TOKEN=$TOKEN" >> $GITHUB_ENV
+          echo "✅ Installation token fetched successfully"
       
       - name: Checkout devops repository
         run: |
           git clone https://x-access-token:${APP_TOKEN}@github.com/venture23-aleo/aleo-devops.git aleo-devops
           cd aleo-devops
           git config user.name "ci-v23"
-          git config user.email "123123+c-v23@users.noreply.github.com"
+          git config user.email "986023+ci-v23@users.noreply.github.com"
 
       - name: Update Kustomize image
         run: |
