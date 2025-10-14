@@ -74,7 +74,7 @@ jobs:
           echo "JWT=${JWT}" >> $GITHUB_ENV
           EOF
           chmod +x generate_jwt.sh
-          ./generate_jwt.sh "${{ secrets.GH_APP_ID }}" "${{ secrets.GH_APP_PRIVATE_KEY }}"
+          ./generate_jwt.sh "${{ secrets.CI_APP_ID }}" "${{ secrets.CI_APP_PRIVATE_KEY }}"
       
       - name: Get installation ID dynamically
         id: get-installation
