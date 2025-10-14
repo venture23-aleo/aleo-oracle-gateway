@@ -38,13 +38,20 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
-    container:
-      image: registry.k8s.io/kustomize/kustomize:v5.0.0  
+    # container:
+    #   image: registry.k8s.io/kustomize/kustomize:v5.0.0  
     steps:
       - name: Install dependencies
         run: |
           apt-get update
           apt-get install -y curl jq
+      
+      - name: Install kustomize (official script)
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+          kustomize version
+
 
       - name: Generate JWT for GitHub App
         id: generate-jwt
