@@ -103,6 +103,9 @@ jobs:
           cd aleo-devops
           git config user.name "ci-v23"
           git config user.email "986023+ci-v23@users.noreply.github.com"
+          git fetch origin develop
+          git checkout develop
+
 
       - name: Update Kustomize image
         run: |
