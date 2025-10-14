@@ -38,8 +38,8 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
-      container:
-        image: registry.k8s.io/kustomize/kustomize:v5.0.0  
+    container:
+      image: registry.k8s.io/kustomize/kustomize:v5.0.0  
     steps:
       - name: Generate JWT
         id: generate-jwt
