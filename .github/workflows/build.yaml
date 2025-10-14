@@ -102,7 +102,7 @@ jobs:
           git clone https://x-access-token:${APP_TOKEN}@github.com/venture23-aleo/aleo-devops.git aleo-devops
           cd aleo-devops
           git config user.name "ci-v23"
-          git config user.email "986023+ci-v23@users.noreply.github.com"
+          git config user.email "238069220+ci-v23@users.noreply.github.com"
           git fetch origin develop
           git checkout develop
 
