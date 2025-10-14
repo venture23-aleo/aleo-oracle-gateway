@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - ci/add-deployment
+env:
+  IMAGE_TAG: ${{ github.sha }}
 
 jobs:
   build-and-push:
@@ -24,12 +26,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set image tag
-        id: vars
-        run: |
-          SHORT_HASH=$(git rev-parse --short HEAD)
-          echo "IMAGE_TAG=$SHORT_HASH" >> $GITHUB_ENV
-
       - name: Build Docker image
         run: |
           docker build \
@@ -39,6 +35,12 @@ jobs:
       - name: Push Docker image
         run: |
           docker push ghcr.io/${{ github.repository_owner }}/aleo-oracle-gateway:${{ env.IMAGE_TAG }}
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+      container:
+        image: registry.k8s.io/kustomize/kustomize:v5.0.0  
+    steps:
       - name: Generate JWT
         id: generate-jwt
         run: |
@@ -80,8 +82,6 @@ jobs:
           git config user.email "123123+c-v23@users.noreply.github.com"
 
       - name: Update Kustomize image
-        container:
-          image: registry.k8s.io/kustomize/kustomize:v5.0.0
         run: |
           cd aleo-devops/k8s-deployment/aleo-oracle-gateway/overlays/dev/patches/
           kustomize edit set image aleo-oracle-gateway=ghcr.io/${{ github.repository_owner }}/aleo-oracle-gateway:${IMAGE_TAG}
