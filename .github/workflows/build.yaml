@@ -46,7 +46,7 @@ jobs:
         id: generate-jwt
         run: |
           cat <<'EOF' > generate_jwt.sh
-          #!/usr/bin/env bash
+          #!/bin/sh
           set -o pipefail
           client_id=$1
           pem=$2
@@ -65,7 +65,7 @@ jobs:
           EOF
           chmod +x generate_jwt.sh
           ./generate_jwt.sh "${{ secrets.GH_APP_ID }}" "${{ secrets.GH_APP_PRIVATE_KEY }}"
-          
+
       - name: Get installation token
         id: get-token
         run: |
