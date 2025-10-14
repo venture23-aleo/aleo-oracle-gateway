@@ -53,11 +53,10 @@ jobs:
           kustomize version
 
 
-      - name: Generate JWT for GitHub App
-        id: generate-jwt
+      - name: Generate JWT
         run: |
           cat <<'EOF' > generate_jwt.sh
-          #!/bin/sh
+          #!/usr/bin/env bash
           set -o pipefail
           client_id=$1
           pem=$2
