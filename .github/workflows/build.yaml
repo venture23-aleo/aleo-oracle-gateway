@@ -41,7 +41,11 @@ jobs:
     container:
       image: registry.k8s.io/kustomize/kustomize:v5.0.0  
     steps:
-      
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y curl jq
+
       - name: Generate JWT for GitHub App
         id: generate-jwt
         run: |
