@@ -24,19 +24,67 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set image tag
+        id: vars
+        run: |
+          SHORT_HASH=$(git rev-parse --short HEAD)
+          echo "IMAGE_TAG=$SHORT_HASH" >> $GITHUB_ENV
+
       - name: Build Docker image
         run: |
           docker build \
             --build-arg MODE=prod \
-            -t ghcr.io/${{ github.repository_owner }}/aleo-oracle-gateway:latest .
+            -t ghcr.io/${{ github.repository_owner }}/aleo-oracle-gateway:${{ env.IMAGE_TAG }} .
 
       - name: Push Docker image
         run: |
-          docker push ghcr.io/${{ github.repository_owner }}/aleo-oracle-gateway:latest
-
-      - name: Push branch tag
-        if: github.ref != 'refs/heads/main'
+          docker push ghcr.io/${{ github.repository_owner }}/aleo-oracle-gateway:${{ env.IMAGE_TAG }}
+      - name: Generate JWT
+        id: generate-jwt
         run: |
-          BRANCH_TAG=$(echo $GITHUB_REF_NAME | tr / -)
-          docker tag ghcr.io/${{ github.repository_owner }}/aleo-oracle-gateway:latest ghcr.io/${{ github.repository_owner }}/aleo-oracle-gateway:${BRANCH_TAG}
-          docker push ghcr.io/${{ github.repository_owner }}/aleo-oracle-gateway:${BRANCH_TAG}
+          # Create JWT
+          JWT=$(ruby -r openssl -r base64 -r json -e '
+            private_pem = ENV["GH_APP_PRIVATE_KEY"].gsub("\\n","\n")
+            private = OpenSSL::PKey::RSA.new(private_pem)
+            payload = {
+              iat: Time.now.to_i,
+              exp: Time.now.to_i + 600,
+              iss: ENV["GH_APP_ID"].to_i
+            }
+            header = { alg: "RS256", typ: "JWT" }
+            segments = [
+              Base64.urlsafe_encode64(header.to_json).gsub("=", ""),
+              Base64.urlsafe_encode64(payload.to_json).gsub("=", "")
+            ]
+            signature = private.sign(OpenSSL::Digest.new("SHA256"), segments.join("."))
+            segments << Base64.urlsafe_encode64(signature).gsub("=", "")
+            puts segments.join(".")
+          ')
+          echo "JWT=$JWT" >> $GITHUB_ENV
+      
+      - name: Get installation token
+        id: get-token
+        run: |
+          TOKEN=$(curl -s -X POST \
+            -H "Authorization: Bearer $JWT" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/app/installations/${{ secrets.GH_APP_INSTALLATION_ID }}/access_tokens \
+            | jq -r .token)
+          echo "APP_TOKEN=$TOKEN" >> $GITHUB_ENV
+      
+      - name: Checkout devops repository
+        run: |
+          git clone https://x-access-token:${APP_TOKEN}@github.com/venture23-aleo/aleo-devops.git aleo-devops
+          cd aleo-devops
+          git config user.name "ci-v23"
+          git config user.email "123123+c-v23@users.noreply.github.com"
+
+      - name: Update Kustomize image
+        container:
+          image: registry.k8s.io/kustomize/kustomize:v5.0.0
+        run: |
+          cd aleo-devops/k8s-deployment/aleo-oracle-gateway/overlays/dev/patches/
+          kustomize edit set image aleo-oracle-gateway=ghcr.io/${{ github.repository_owner }}/aleo-oracle-gateway:${IMAGE_TAG}
+          git add .
+          git commit -m "Update aleo-oracle-gateway image to ${IMAGE_TAG}"
+          git push https://x-access-token:${APP_TOKEN}@github.com/venture23-aleo/aleo-devops.git develop
