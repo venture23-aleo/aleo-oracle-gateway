@@ -29,8 +29,8 @@ COPY --from=builder /app/leo /usr/local/bin/leo
 
 ENV NODE_ENV=production
 ENV PATH=/app/node_modules/.bin:$PATH
-ENV PORT=3000
+ENV PORT=8080
 
-EXPOSE 3000
+EXPOSE 8080
 
 CMD if [ "$MODE" = "dev" ]; then yarn dev; else yarn start; fi
