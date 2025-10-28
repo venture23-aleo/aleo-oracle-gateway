@@ -27,7 +27,7 @@ export const configSchema = z.object({
         value: z.enum(['float', 'int', 'string']),
         precision: z.coerce.number().int().min(0).max(12),
       }),
-      requestHeaders: z.record(z.string(), z.string()),
+      requestHeaders: z.record(z.string(), z.string()).optional(),
     }),
     verifyAttestation: z.coerce.boolean(),
     verifier: z.object({
@@ -35,13 +35,27 @@ export const configSchema = z.object({
       port: z.coerce.number().int().min(1).max(65535),
       https: z.coerce.boolean(),
       resolve: z.coerce.boolean(),
-    }),
+      tls: z.object({
+        keyPath: z.string(),
+        certPath: z.string(),
+        caPath: z.string(),
+        rejectUnauthorized: z.coerce.boolean(),
+        servername: z.string(),
+      }).nullable(),
+    }).required(),
     notarizers: z.array(z.object({
       address: z.string().regex(/^[-a-zA-Z0-9.]+$/),
       port: z.coerce.number().int().min(1).max(65535),
       https: z.coerce.boolean(),
       resolve: z.coerce.boolean(),
-    })),
+      tls: z.object({
+        keyPath: z.string(),
+        certPath: z.string(),
+        caPath: z.string(),
+        rejectUnauthorized: z.coerce.boolean(),
+        servername: z.string(),
+      }),
+    }).required()),
     aleoProgram: z.object({
       name: z.string().regex(/^[a-zA-Z0-9_\.]+$/),
       function: z.object({

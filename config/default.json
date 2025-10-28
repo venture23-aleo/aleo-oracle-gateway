@@ -24,36 +24,45 @@
       "encodingOptions": {
         "value": "float",
         "precision": 6
-      },
-      "requestHeaders": {
-        "Accept": "*/*",
-        "DNT": "1",
-        "Upgrade-Insecure-Requests": "1",
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"
       }
     },
     "verifier": {
       "address": "aleorclvrfy.venture23.xyz",
       "port": 443,
       "https": true,
-      "resolve": false
+      "resolve": false,
+      "tls": null
     },
     "notarizers": [
       {
-        "address": "aleo-oracle-be.venture23.xyz",
-        "port": 443,
+        "address": "20.83.185.145",
+        "port": 8443,
         "https": true,
-        "resolve": false
+        "resolve": false,
+        "tls": {
+          "certPath": "./certs/notarization/client.crt",
+          "keyPath": "./certs/notarization/client.key",
+          "caPath": "./certs/notarization/ca.crt",
+          "rejectUnauthorized": true,
+          "servername": "nginx-mtls-proxy"
+        }
       },
       {
         "address": "20.213.211.94",
         "port": 8000,
-        "https": false,
-        "resolve": false
+        "https": true,
+        "resolve": false,
+        "tls": {
+          "certPath": "./certs/notarization/client.crt",
+          "keyPath": "./certs/notarization/client.key",
+          "caPath": "./certs/notarization/ca.crt",
+          "rejectUnauthorized": true,
+          "servername": "nginx-mtls-proxy"
+        }
       }
     ],
     "aleoProgram": {
-      "name": "vlink_oracle_v0002.aleo",
+      "name": "vlink_oracle_v2.aleo",
       "function": {
         "setUniqueId": "set_unique_id",
         "setSgxData": "set_data_sgx",
@@ -63,7 +72,9 @@
     "supportedCoins": [
       "BTC",
       "ETH",
-      "ALEO"
+      "ALEO",
+      "USDC",
+      "USDT"
     ]
   },
   "cron": {
@@ -77,6 +88,14 @@
         "enabled": true
       },
       "ALEO": {
+        "schedule": "0 0 */3 * * *",
+        "enabled": true
+      },
+      "USDC": {
+        "schedule": "0 0 */3 * * *",
+        "enabled": true
+      },
+      "USDT": {
         "schedule": "0 0 */3 * * *",
         "enabled": true
       }
