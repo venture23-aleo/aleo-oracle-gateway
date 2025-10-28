@@ -35,7 +35,7 @@
   "license": "GPL-3.0",
   "type": "module",
   "dependencies": {
-    "@venture23-aleo/aleo-oracle-sdk": "^1.0.0",
+    "@venture23-aleo/aleo-oracle-sdk": "^1.1.0",
     "axios": "^1.10.0",
     "child_process": "^1.0.2",
     "config": "^4.0.1",

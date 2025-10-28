@@ -398,7 +398,8 @@ export class OracleService implements OracleServiceInterface {
 
           const oracleClient = new OracleClient({
             notarizer: selectedNotarizer!,
-            verifier: oracleConfig.verifier,
+            // @ts-expect-error TODO: to add mtls cert 
+            verifier: oracleConfig.verifier!, 
             quiet: false,
           })
 
