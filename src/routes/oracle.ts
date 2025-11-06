@@ -48,86 +48,86 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
     });
   });
 
-  // Set SGX Unique ID
-  router.post('/set-sgx-unique-id', async (req: Request, res: Response) => {
-    try {
-      if(process.env.NODE_ENV === 'production') {
-        return res.status(403).json({
-          success: false,
-          message: 'Setting SGX Unique ID is not allowed in production environment',
-          error: 'Forbidden in production',
-        });
-      }
-      const { uniqueId } = req.body;
-      if (!uniqueId) {
-        return res.status(400).json({
-          success: false,
-          message: 'Unique ID is required',
-          error: 'Unique ID is required',
-        })
-      }
+  // // Set SGX Unique ID
+  // router.post('/set-sgx-unique-id', async (req: Request, res: Response) => {
+  //   try {
+  //     if(process.env.NODE_ENV === 'production') {
+  //       return res.status(403).json({
+  //         success: false,
+  //         message: 'Setting SGX Unique ID is not allowed in production environment',
+  //         error: 'Forbidden in production',
+  //       });
+  //     }
+  //     const { uniqueId } = req.body;
+  //     if (!uniqueId) {
+  //       return res.status(400).json({
+  //         success: false,
+  //         message: 'Unique ID is required',
+  //         error: 'Unique ID is required',
+  //       })
+  //     }
 
-      console.log(`Setting SGX Unique ID: ${uniqueId}`);
+  //     console.log(`Setting SGX Unique ID: ${uniqueId}`);
       
-      const result = await oracleService.setSgxUniqueId(uniqueId);
-      return res.json({
-        success: true,
-        message: 'SGX Unique ID set successfully',
-        data: result,
-      });
-    } catch (error) {
-      logError('API Error: setSgxUniqueId', error as Error);
-      await discordNotifier.sendErrorAlert(error as Error, {
-        operation: 'api_set_sgx_unique_id',
-        endpoint: '/api/oracle/set-sgx-unique-id',
-      });
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to set SGX Unique ID',
-        error: (error as Error).message,
-      });
-    }
-  });
+  //     const result = await oracleService.setSgxUniqueId(uniqueId);
+  //     return res.json({
+  //       success: true,
+  //       message: 'SGX Unique ID set successfully',
+  //       data: result,
+  //     });
+  //   } catch (error) {
+  //     logError('API Error: setSgxUniqueId', error as Error);
+  //     await discordNotifier.sendErrorAlert(error as Error, {
+  //       operation: 'api_set_sgx_unique_id',
+  //       endpoint: '/api/oracle/set-sgx-unique-id',
+  //     });
+  //     return res.status(500).json({
+  //       success: false,
+  //       message: 'Failed to set SGX Unique ID',
+  //       error: (error as Error).message,
+  //     });
+  //   }
+  // });
 
-  // Set Public Key
-  router.post('/set-signer-public-key', async (req: Request, res: Response) => {
-    try {
-      if (process.env.NODE_ENV === 'production') {
-        return res.status(403).json({
-          success: false,
-          message: 'Setting SGX Unique ID is not allowed in production environment',
-          error: 'Forbidden in production',
-        });
-      }
-      const { signerPubKey } = req.body;
+  // // Set Public Key
+  // router.post('/set-signer-public-key', async (req: Request, res: Response) => {
+  //   try {
+  //     if (process.env.NODE_ENV === 'production') {
+  //       return res.status(403).json({
+  //         success: false,
+  //         message: 'Setting SGX Unique ID is not allowed in production environment',
+  //         error: 'Forbidden in production',
+  //       });
+  //     }
+  //     const { signerPubKey } = req.body;
       
-      if (!signerPubKey) {
-        return res.status(400).json({
-          success: false,
-          message: 'Public key is required',
-          error: 'Public key is required',
-        });
-      }
+  //     if (!signerPubKey) {
+  //       return res.status(400).json({
+  //         success: false,
+  //         message: 'Public key is required',
+  //         error: 'Public key is required',
+  //       });
+  //     }
 
-      const result = await oracleService.setSignerPublicKey(signerPubKey);
-      return res.json({
-        success: true,
-        message: 'Public key set successfully',
-        data: result,
-      });
-    } catch (error) {
-      logError('API Error: setPublicKey', error as Error);
-      await discordNotifier.sendErrorAlert(error as Error, {
-        operation: 'api_set_signer_public_key',
-        endpoint: '/api/oracle/set-signer-public-key',
-      });
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to set signer public key',
-        error: (error as Error).message,
-      });
-    }
-  });
+  //     const result = await oracleService.setSignerPublicKey(signerPubKey);
+  //     return res.json({
+  //       success: true,
+  //       message: 'Public key set successfully',
+  //       data: result,
+  //     });
+  //   } catch (error) {
+  //     logError('API Error: setPublicKey', error as Error);
+  //     await discordNotifier.sendErrorAlert(error as Error, {
+  //       operation: 'api_set_signer_public_key',
+  //       endpoint: '/api/oracle/set-signer-public-key',
+  //     });
+  //     return res.status(500).json({
+  //       success: false,
+  //       message: 'Failed to set signer public key',
+  //       error: (error as Error).message,
+  //     });
+  //   }
+  // });
 
   // Set SGX Data for a specific coin
   router.post(
@@ -178,17 +178,19 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
   // Set SGX Data for all coins
   router.post('/set-sgx-data-all', async (req: Request, res: Response) => {
     try {
-      const results: any[] = [];
+      const results : any[] = [];
       const errors: Array<{ coinName: string; error: string }> = [];
 
-      for (const coinName of COIN_LIST) {
-        try {
-          const result = await oracleService.handlePriceUpdateCron(coinName);
-          results.push(result);
-        } catch (error) {
-          errors.push({ coinName, error: (error as Error).message });
-        }
-      }
+      await Promise.all(
+          COIN_LIST.map(async (coinName) => {
+            try { 
+              const result = await oracleService.handlePriceUpdateCron(coinName);
+              results.push({coinName, ...result});
+            } catch (err) {
+              errors.push({ coinName, error: (err as Error).message });
+            }
+        })
+      );
 
       res.json({
         success: errors.length === 0,

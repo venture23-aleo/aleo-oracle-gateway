@@ -12,6 +12,7 @@ import { log, logDebug, logError } from '@utils/logger.js';
 import { leoCliConfig, oracleConfig, queueConfig } from '@configs/index.js';
 import { retry } from '@utils/pRetry.js';
 import { monitorProcessResources, resetIOTracking } from '@utils/processMonitor.js';
+import axios from 'axios';
 
 /**
  * Global execution queue for Leo CLI commands
@@ -196,3 +197,29 @@ export const extractTransactionId = (leoResult: LeoExecutionResult): string | nu
   const match = leoResult.data.match(leoTransactionIdRegex) || leoResult.errorOutput?.match(leoTransactionIdRegex);
   return match ? match[0] : null;
 };
+
+/**
+ * 
+ */
+export const delegateAleoTransaction = async ({ inputs, functionName, label }: LeoExecutionParams): Promise<LeoExecutionResult> => {
+  try {
+    const command = `execute ${aleoProgramName}/${functionName} ${inputs.map(input => `"${input}"`).join(' ')} --network ${leoCliConfig.network} --endpoint ${leoCliConfig.endpoint} --broadcast -y -d --home /tmp`;
+
+    const requestBody = { cmd: command, timeout: "400s" }; // Timeout is 300 seconds
+    const requestHeaders = { 'Content-Type': 'application/json' };
+
+    const response = await axios.post(
+      oracleConfig.leoExecutorApiUrl!,
+      requestBody,
+      { headers: requestHeaders }
+    );
+
+    log(`${label} Aleo transaction delegated successfully`);
+
+    return { success: true, data: response.data?.stdout, errorOutput: response.data?.stderr, label };
+  } catch (error) {
+    logError(`${label} Error delegating Aleo transaction: ${error}`);
+    logError(`Failed to delegate Aleo transaction: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`${label} Failed to delegate Aleo transaction: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}

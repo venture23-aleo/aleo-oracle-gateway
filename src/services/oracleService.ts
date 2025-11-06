@@ -6,6 +6,7 @@ import {
 import { createWriteStream, existsSync, mkdirSync, type WriteStream } from 'node:fs';
 import axios from 'axios';
 import {
+  delegateAleoTransaction,
   executeLeoWithQueue,
   extractTransactionId,
   type LeoExecutionResult,
@@ -102,9 +103,9 @@ export interface OracleServiceInterface {
   /** Initialize the service */
   initialize(): Promise<void>;
   /** Set the SGX unique ID */
-  setSgxUniqueId(uniqueId: string): Promise<any>;
-  /** Set the public key */
-  setSignerPublicKey(publicKey: string): Promise<any>;
+  // setSgxUniqueId(uniqueId: string): Promise<any>;
+  // /** Set the public key */
+  // setSignerPublicKey(publicKey: string): Promise<any>;
   /** Set the SGX data */
   setSgxData(coinName: string): Promise<any>;
   /** Start the cron job */
@@ -127,17 +128,6 @@ export class OracleService implements OracleServiceInterface {
   private coinPriceStream: Record<string, WriteStream>;
 
   constructor() {
-    // DEFAULT_NOTARIZATION_BACKENDS.splice(0, 2);
-    // notarizers.forEach((notarizer) => {
-    //   DEFAULT_NOTARIZATION_BACKENDS.push({...notarizer, init: DEFAULT_FETCH_OPTIONS});
-    // })
-    // console.log(DEFAULT_NOTARIZATION_BACKENDS);
-
-    // this.oracleClient = new OracleClient({
-    //   verifier:verifier,
-    //   quiet: false,
-    // });
-
     // Initialize flag
     this.isInitialized = false;
 
@@ -286,76 +276,76 @@ export class OracleService implements OracleServiceInterface {
    * Set the SGX unique ID
    * @returns The success, unique ID, and transaction ID
    */
-  async setSgxUniqueId(uniqueId: string): Promise<{ success: boolean; uniqueId: string; transactionId: string }> {
-    const requestString = '[setSgxUniqueId]';
-    try {
+  // async setSgxUniqueId(uniqueId: string): Promise<{ success: boolean; uniqueId: string; transactionId: string }> {
+  //   const requestString = '[setSgxUniqueId]';
+  //   try {
 
-      log(`${requestString} SGX Unique Id: ${uniqueId}`);
+  //     log(`${requestString} SGX Unique Id: ${uniqueId}`);
 
-      const leoResult = await executeLeoWithQueue({
-        inputs: [uniqueId],
-        label: 'SET_SGX_UNIQUE_ID',
-        functionName: SET_UNIQUE_ID_FUNCTION_NAME,
-      });
+  //     const leoResult = await executeLeoWithQueue({
+  //       inputs: [uniqueId],
+  //       label: 'SET_SGX_UNIQUE_ID',
+  //       functionName: SET_UNIQUE_ID_FUNCTION_NAME,
+  //     });
 
-      const transactionId = extractTransactionId(leoResult as LeoExecutionResult);
-      if (transactionId) {
-        log(`${requestString} Transaction ID: ${transactionId}`);
-        // Send success notification with transaction details
-        await discordNotifier.sendTransactionAlert('sgx_unique_id', transactionId, 'confirmed', {
-          uniqueId,
-        });
-      } else {
-        throw new Error('Transaction ID not found in leo output.');
-      }
+  //     const transactionId = extractTransactionId(leoResult as LeoExecutionResult);
+  //     if (transactionId) {
+  //       log(`${requestString} Transaction ID: ${transactionId}`);
+  //       // Send success notification with transaction details
+  //       await discordNotifier.sendTransactionAlert('sgx_unique_id', transactionId, 'confirmed', {
+  //         uniqueId,
+  //       });
+  //     } else {
+  //       throw new Error('Transaction ID not found in leo output.');
+  //     }
 
-      return { success: true, uniqueId, transactionId };
-    } catch (error) {
-      logError(`${requestString} error setting unique id`, error as Error);
-      await discordNotifier.sendErrorAlert(error as Error, {
-        operation: 'setSgxUniqueId',
-        requestString,
-      });
-      throw error;
-    }
-  }
+  //     return { success: true, uniqueId, transactionId };
+  //   } catch (error) {
+  //     logError(`${requestString} error setting unique id`, error as Error);
+  //     await discordNotifier.sendErrorAlert(error as Error, {
+  //       operation: 'setSgxUniqueId',
+  //       requestString,
+  //     });
+  //     throw error;
+  //   }
+  // }
 
   /**
    * Set the public key
    * @returns The success, signer public key, and transaction ID
    */
-  async setSignerPublicKey(signerPubKey: string): Promise<{ success: boolean; signerPubKey: string; transactionId: string }> {
-    const requestString = '[setSignerPublicKey]';
-    try {
+  // async setSignerPublicKey(signerPubKey: string): Promise<{ success: boolean; signerPubKey: string; transactionId: string }> {
+  //   const requestString = '[setSignerPublicKey]';
+  //   try {
 
-      const leoResult = await executeLeoWithQueue({
-        inputs: [signerPubKey, 'true'],
-        label: 'SET_SGX_PUBLIC_KEY',
-        functionName: SET_PUBLIC_KEY_FUNCTION_NAME,
-      });
+  //     const leoResult = await executeLeoWithQueue({
+  //       inputs: [signerPubKey, 'true'],
+  //       label: 'SET_SGX_PUBLIC_KEY',
+  //       functionName: SET_PUBLIC_KEY_FUNCTION_NAME,
+  //     });
 
-      const transactionId = extractTransactionId(leoResult as LeoExecutionResult);
-      if (transactionId) {
-        log(`${requestString} Transaction ID: ${transactionId}`);
+  //     const transactionId = extractTransactionId(leoResult as LeoExecutionResult);
+  //     if (transactionId) {
+  //       log(`${requestString} Transaction ID: ${transactionId}`);
 
-        // Send success notification with transaction details
-        await discordNotifier.sendTransactionAlert('sgx_public_key', transactionId, 'confirmed', {
-          signerPubKey,
-        });
-      } else {
-        throw new Error('Transaction ID not found in leo output.');
-      }
+  //       // Send success notification with transaction details
+  //       await discordNotifier.sendTransactionAlert('sgx_public_key', transactionId, 'confirmed', {
+  //         signerPubKey,
+  //       });
+  //     } else {
+  //       throw new Error('Transaction ID not found in leo output.');
+  //     }
 
-      return { success: true, signerPubKey, transactionId };
-    } catch (error) {
-      logError(`${requestString} error setting public key`, error as Error);
-      await discordNotifier.sendErrorAlert(error as Error, {
-        operation: 'setSignerPublicKey',
-        requestString,
-      });
-      throw error;
-    }
-  }
+  //     return { success: true, signerPubKey, transactionId };
+  //   } catch (error) {
+  //     logError(`${requestString} error setting public key`, error as Error);
+  //     await discordNotifier.sendErrorAlert(error as Error, {
+  //       operation: 'setSignerPublicKey',
+  //       requestString,
+  //     });
+  //     throw error;
+  //   }
+  // }
 
   shuffleNotarizers(): typeof notarizers {
     const shuffled = [...notarizers];
@@ -384,6 +374,8 @@ export class OracleService implements OracleServiceInterface {
       let success = false;
 
       let response = null;
+      
+      let errorMsg = null;
 
       while (shuffledNotarizers.length > 0 && !success) {
 
@@ -407,7 +399,8 @@ export class OracleService implements OracleServiceInterface {
           // logDebug(`[setSgxData] Attestation result: ${JSON.stringify(notarizeResult)}`);
 
           if (!notarizeResult || notarizeResult.length === 0) {
-            throw new Error("No notarization result received");
+            errorMsg = `No notarization result received for ${coinName}`;
+            throw new Error(errorMsg);
           }
 
           const result = notarizeResult[0] as AttestationResponse;
@@ -421,7 +414,7 @@ export class OracleService implements OracleServiceInterface {
           logDebug(`${requestString} Attestation data: ${attestationData}`);
           await this.trackCoinPrice({ coinName, timestamp, price: attestationData });
 
-          const leoResult = await executeLeoWithQueue({
+          const leoResult = await delegateAleoTransaction({
             inputs: [userData, report, signature, address],
             functionName: SET_SGX_DATA_FUNCTION_NAME,
             label: `SET_SGX_DATA:${coinName}`,
@@ -443,20 +436,23 @@ export class OracleService implements OracleServiceInterface {
 
             response = { coinName, txnId: transactionId, errorMsg: null }
           } else {
-            throw new Error('Transaction ID not found in leo output.');
+            errorMsg = `Transaction ID not found in leo output for ${coinName} with error ${leoResult?.errorOutput}`;
+            throw new Error(errorMsg);
           }
           
         } catch (error) {
+          if (!errorMsg) {
+            errorMsg = (error as Error).message;
+          }
           success = false;
-          logError(`${requestString} Error setting SGX data with notarizer:`, error as Error);
+          logError(`${requestString} ${errorMsg}`);
           log(`${requestString} Trying next notarizer...`);
         }
       }
 
       if(!success) {
-        const errorMsg = 'Failed to set SGX data after trying all notarizers';
         logError(`${requestString} ${errorMsg}`);
-        await discordNotifier.sendErrorAlert(new Error(errorMsg), {
+        await discordNotifier.sendErrorAlert(new Error(errorMsg as string), {
           operation: 'setSgxData',
           coinName,
         });
@@ -483,78 +479,93 @@ export class OracleService implements OracleServiceInterface {
    * @returns The void
    */
   async handlePriceUpdateCron(coinName: string): Promise<SgxDataResult | null> {
-    if (!this.stats[coinName]) {
-      this.stats[coinName] = {
-        totalRuns: 0,
-        successfulRuns: 0,
-        failedRuns: 0,
-        lastRun: null,
-        lastSuccess: null,
-        lastError: null,
-        cronEnabled: true,
-        cronSchedule: cronConfig.tokens[coinName]?.schedule || '',
-      };
-    }
 
-    this.stats[coinName].totalRuns++;
-    this.stats[coinName].lastRun = new Date();
-
-    const startTime = Date.now();
-    logDebug(
-      `Starting price update cycle ${this.stats[coinName].totalRuns} for coins: ${coinName}`
-    );
-
-    // Send started notification
-    await discordNotifier.sendCronJobAlert(`${coinName} price_update`, 'started', null, null);
-
-    let successCount = 0;
-    let errorCount = 0;
-
-    let response: SgxDataResult | null = null;
-
-    const coinStartTime = Date.now();
     try {
-      log(`Updating ${coinName} price...`);
 
-      response = await this.setSgxData(coinName);
+      if (!this.stats[coinName]) {
+        this.stats[coinName] = {
+          totalRuns: 0,
+          successfulRuns: 0,
+          failedRuns: 0,
+          lastRun: null,
+          lastSuccess: null,
+          lastError: null,
+          cronEnabled: true,
+          cronSchedule: cronConfig.tokens[coinName]?.schedule || '',
+        };
+      }
 
-      const coinDuration = Date.now() - coinStartTime;
-      log(`Successfully updated ${coinName} price in ${coinDuration}ms`);
-      successCount++;
-    } catch (err) {
-      const coinDuration = Date.now() - coinStartTime;
-      logError(`Failed to update ${coinName} price after ${coinDuration}ms`, err as Error);
-      errorCount++;
-      response = (err as any)?.data as SgxDataResult;
-    }
-    const duration = Date.now() - startTime;
+      this.stats[coinName].totalRuns++;
+      this.stats[coinName].lastRun = new Date();
 
-    if (errorCount === 0) {
-      this.stats[coinName].successfulRuns++;
-      this.stats[coinName].lastSuccess = new Date();
+      const startTime = Date.now();
       logDebug(
-        `Price update cycle ${this.stats[coinName].totalRuns} completed successfully in ${duration}ms`
+        `Starting price update cycle ${this.stats[coinName].totalRuns} for coins: ${coinName}`
       );
 
-      // Send success notification
-      await discordNotifier.sendCronJobAlert(`${coinName} price_update`, 'success', null, duration);
-    } else {
-      this.stats[coinName].failedRuns++;
-      this.stats[coinName].lastError = new Date();
-      logWarn(
-        `Price update cycle ${this.stats[coinName].totalRuns} completed with ${errorCount} errors in ${duration}ms`
-      );
+      // Send started notification
+      await discordNotifier.sendCronJobAlert(`${coinName} price_update`, 'started', null, null);
 
-      // Send failure notification
-      await discordNotifier.sendCronJobAlert(
-        `${coinName} price_update`,
-        'failed',
-        new Error(`${errorCount} coins failed to update`),
-        duration
-      );
+      let successCount = 0;
+      let errorCount = 0;
+
+      let response: SgxDataResult | null = null;
+
+      const coinStartTime = Date.now();
+      try {
+        log(`Updating ${coinName} price...`);
+
+        response = await this.setSgxData(coinName);
+
+        if (response.errorMsg) {
+          throw new Error(response.errorMsg);
+        }
+
+        const coinDuration = Date.now() - coinStartTime;
+        log(`Successfully updated ${coinName} price in ${coinDuration}ms`);
+        successCount++;
+      } catch (err) {
+        const coinDuration = Date.now() - coinStartTime;
+        logError(`Failed to update ${coinName} price after ${coinDuration}ms`, err as Error);
+        errorCount++;
+        response = (err as any)?.data as SgxDataResult;
+      }
+      const duration = Date.now() - startTime;
+
+      if (errorCount === 0) {
+        this.stats[coinName].successfulRuns++;
+        this.stats[coinName].lastSuccess = new Date();
+        logDebug(
+          `Price update cycle ${this.stats[coinName].totalRuns} completed successfully in ${duration}ms`
+        );
+
+        // Send success notification
+        await discordNotifier.sendCronJobAlert(`${coinName} price_update`, 'success', null, duration);
+      } else {
+        this.stats[coinName].failedRuns++;
+        this.stats[coinName].lastError = new Date();
+        logWarn(
+          `Price update cycle ${this.stats[coinName].totalRuns} completed with ${errorCount} errors in ${duration}ms`
+        );
+
+        // Send failure notification
+        await discordNotifier.sendCronJobAlert(
+          `${coinName} price_update`,
+          'failed',
+          new Error(`${errorCount} coins failed to update`),
+          duration
+        );
+      }
+
+      return response;
+    } catch (error) {
+      logError(`Failed to handle price update cron for ${coinName}`, error as Error);
+      await discordNotifier.sendErrorAlert(error as Error, {
+        operation: 'handlePriceUpdateCron',
+        coinName,
+      });
+      throw error;
     }
-
-    return response;
   }
 
   /**

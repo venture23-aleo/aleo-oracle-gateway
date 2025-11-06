@@ -30,26 +30,19 @@
       "address": "aleorclvrfy.venture23.xyz",
       "port": 443,
       "https": true,
-      "resolve": false,
-      "tls": null
+      "resolve": true,
+      "tls": {
+        "certPath": "./certs/verification/client.crt",
+        "keyPath": "./certs/verification/client.key",
+        "caPath": "./certs/verification/ca.crt",
+        "rejectUnauthorized": false,
+        "servername": "aleorclvrfy.venture23.xyz"
+      }
     },
     "notarizers": [
       {
         "address": "20.83.185.145",
         "port": 8443,
-        "https": true,
-        "resolve": false,
-        "tls": {
-          "certPath": "./certs/notarization/client.crt",
-          "keyPath": "./certs/notarization/client.key",
-          "caPath": "./certs/notarization/ca.crt",
-          "rejectUnauthorized": true,
-          "servername": "nginx-mtls-proxy"
-        }
-      },
-      {
-        "address": "20.213.211.94",
-        "port": 8000,
         "https": true,
         "resolve": false,
         "tls": {
@@ -80,23 +73,23 @@
   "cron": {
     "tokens": {
       "BTC": {
-        "schedule": "0 0 */2 * * *",
+        "schedule": "0 0 */3 * * *",
         "enabled": true
       },
       "ETH": {
-        "schedule": "0 0 */2 * * *",
+        "schedule": "0 0 */3 * * *",
         "enabled": true
       },
       "ALEO": {
-        "schedule": "0 0 */3 * * *",
+        "schedule": "0 0 */1 * * *",
         "enabled": true
       },
       "USDC": {
-        "schedule": "0 0 */3 * * *",
+        "schedule": "0 0 */1 * * *",
         "enabled": true
       },
       "USDT": {
-        "schedule": "0 0 */3 * * *",
+        "schedule": "0 0 */1 * * *",
         "enabled": true
       }
     }

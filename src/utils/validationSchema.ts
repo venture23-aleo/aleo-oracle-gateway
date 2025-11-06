@@ -29,6 +29,7 @@ export const configSchema = z.object({
       }),
       requestHeaders: z.record(z.string(), z.string()).optional(),
     }),
+    leoExecutorApiUrl: z.url().optional(),
     verifyAttestation: z.coerce.boolean(),
     verifier: z.object({
       address: z.string().regex(/^[-a-zA-Z0-9.]+$/),

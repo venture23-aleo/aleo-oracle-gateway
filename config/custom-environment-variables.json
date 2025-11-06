@@ -19,6 +19,7 @@
       "rpcUrl": "ALEO_RPC_URL",
       "name": "ORACLE_PROGRAM_NAME"
     },
+    "leoExecutorApiUrl": "LEO_EXECUTOR_API_URL",
     "verifier": {
       "address": "ORACLE_VERIFIER_ADDRESS",
       "port": "ORACLE_VERIFIER_PORT",
@@ -40,6 +41,14 @@
       "ALEO": {
         "schedule": "CRON_ALEO_SCHEDULE",
         "enabled": "CRON_ALEO_ENABLED"
+      },
+      "USDC": {
+        "schedule": "CRON_USDC_SCHEDULE",
+        "enabled": "CRON_USDC_ENABLED"
+      },
+      "USDT": {
+        "schedule": "CRON_USDT_SCHEDULE",
+        "enabled": "CRON_USDT_ENABLED"
       }
     }
   },
