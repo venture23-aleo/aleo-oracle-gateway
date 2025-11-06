@@ -451,12 +451,7 @@ export class OracleService implements OracleServiceInterface {
       }
 
       if(!success) {
-        logError(`${requestString} ${errorMsg}`);
-        await discordNotifier.sendErrorAlert(new Error(errorMsg as string), {
-          operation: 'setSgxData',
-          coinName,
-        });
-        return { coinName, txnId: null, errorMsg };
+        throw new Error(errorMsg as string);
       }
 
       return response as SgxDataResult;
@@ -465,7 +460,11 @@ export class OracleService implements OracleServiceInterface {
       logError(`${requestString} error setting sgx data`, error as Error);
 
       // Send error notification
-      await discordNotifier.sendPriceUpdateAlert(coinName, 'failed', null, error as Error);
+      // await discordNotifier.sendPriceUpdateAlert(coinName, 'failed', null, error as Error);
+      await discordNotifier.sendErrorAlert(error as Error, {
+        operation: 'setSgxData',
+        coinName,
+      });
 
       const err = new Error('Error setting the sgx data');
       (err as any).data = { coinName, txnId: null, errorMsg: (error as Error)?.message };
@@ -517,10 +516,6 @@ export class OracleService implements OracleServiceInterface {
 
         response = await this.setSgxData(coinName);
 
-        if (response.errorMsg) {
-          throw new Error(response.errorMsg);
-        }
-
         const coinDuration = Date.now() - coinStartTime;
         log(`Successfully updated ${coinName} price in ${coinDuration}ms`);
         successCount++;
@@ -540,21 +535,20 @@ export class OracleService implements OracleServiceInterface {
         );
 
         // Send success notification
-        await discordNotifier.sendCronJobAlert(`${coinName} price_update`, 'success', null, duration);
+        // await discordNotifier.sendCronJobAlert(`${coinName} price_update`, 'success', null, duration);
       } else {
         this.stats[coinName].failedRuns++;
         this.stats[coinName].lastError = new Date();
         logWarn(
           `Price update cycle ${this.stats[coinName].totalRuns} completed with ${errorCount} errors in ${duration}ms`
         );
-
         // Send failure notification
-        await discordNotifier.sendCronJobAlert(
-          `${coinName} price_update`,
-          'failed',
-          new Error(`${errorCount} coins failed to update`),
-          duration
-        );
+        // await discordNotifier.sendCronJobAlert(
+        //   `${coinName} price_update`,
+        //   'failed',
+        //   new Error(`${errorCount} coins failed to update`),
+        //   duration
+        // );
       }
 
       return response;

@@ -153,6 +153,16 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
         }
 
         const result = await oracleService.handlePriceUpdateCron(coinName.toUpperCase());
+
+        if (result?.errorMsg) {
+          return res.status(500).json({
+            success: false,
+            error: result.errorMsg,
+            message: `Failed to set SGX data for ${coinName}`,
+            txnId: result.txnId,
+          });
+        }
+
         res.json({
           success: true,
           message: `SGX data set successfully for ${coinName}`,
@@ -185,21 +195,38 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
           COIN_LIST.map(async (coinName) => {
             try { 
               const result = await oracleService.handlePriceUpdateCron(coinName);
-              results.push({coinName, ...result});
+              if (result?.errorMsg) {
+                errors.push({ coinName, error: result.errorMsg });
+              } else {
+                results.push({ coinName, ...result });
+              }
             } catch (err) {
               errors.push({ coinName, error: (err as Error).message });
             }
         })
       );
 
-      res.json({
-        success: errors.length === 0,
-        message: `Processed ${results.length} coins successfully, ${errors.length} failed`,
-        data: {
-          results,
-          errors,
-        },
-      });
+      if (errors.length > 0) {
+        res.status(500).json({
+          success: false,
+          error: `Failed to set SGX data for the following coins: ${errors.map((error) => error.coinName).join(', ')}`,
+          data: {
+            errors,
+            results,
+          },
+        });
+      } else {
+        res.json({
+          success: true,
+          message: `Processed ${results.length} coins successfully`,
+          data: {
+            results,
+            errors: [],
+          },
+        });
+      }
+
+     
     } catch (error) {
       logError('API Error: setSgxDataAll', error as Error);
       await discordNotifier.sendErrorAlert(error as Error, {
