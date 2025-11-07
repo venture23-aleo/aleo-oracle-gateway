@@ -31,6 +31,6 @@ COPY --from=builder /app ./
 ENV NODE_ENV=production
 ENV PATH=/app/node_modules/.bin:$PATH
 
-EXPOSE 3000
+EXPOSE 8080
 
 CMD if [ "$MODE" = "dev" ]; then yarn dev; else yarn start; fi
