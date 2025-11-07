@@ -1,9 +1,9 @@
-name: Build and Push Docker Image
+name: Build and deploy Aleo Oracle Gateway - Prod
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - '*'
 env:
   IMAGE_TAG: ${{ github.sha }}
 
@@ -103,14 +103,14 @@ jobs:
           cd aleo-devops
           git config user.name "ci-v23"
           git config user.email "238069220+ci-v23@users.noreply.github.com"
-          git fetch origin develop
-          git checkout develop
+          git fetch origin main
+          git checkout main
 
 
       - name: Update Kustomize image
         run: |
-          cd aleo-devops/k8s-deployment/aleo-oracle-gateway/overlays/dev
+          cd aleo-devops/k8s-deployment/aleo-oracle-gateway/overlays/mainnet
           kustomize edit set image aleo-oracle-gateway=ghcr.io/${{ github.repository_owner }}/aleo-oracle-gateway:${IMAGE_TAG}
           git add .
           git commit -m "Update aleo-oracle-gateway image to ${IMAGE_TAG}"
-          git push https://x-access-token:${APP_TOKEN}@github.com/venture23-aleo/aleo-devops.git develop
+          git push https://x-access-token:${APP_TOKEN}@github.com/venture23-aleo/aleo-devops.git main
