@@ -2,14 +2,14 @@
   "name": "aleo-oracle-gateway",
   "version": "1.0.0",
   "main": "dist/server.js",
-  "homepage": "https://github.com/zkportal/aleo-oracle-gateway",
+  "homepage": "https://github.com/venture23-aloe/aleo-oracle-gateway",
   "bugs": {
-    "url": "https://github.com/zkportal/aleo-oracle-gateway/issues"
+    "url": "https://github.com/venture23-aleo/aleo-oracle-gateway/issues"
   },
   "description": "Aleo Oracle Gateway",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zkportal/aleo-oracle-gateway.git"
+    "url": "git+https://github.com/venture23-aleo/aleo-oracle-gateway.git"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

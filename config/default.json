@@ -73,32 +73,32 @@
   "cron": {
     "tokens": {
       "BTC": {
-        "schedule": "0 0 */3 * * *",
+        "schedule": "0 */5 * * * *",
         "enabled": true
       },
       "ETH": {
-        "schedule": "0 0 */3 * * *",
+        "schedule": "0 */5 * * * *",
         "enabled": true
       },
       "ALEO": {
-        "schedule": "0 0 */1 * * *",
+        "schedule": "0 */5 * * * *",
         "enabled": true
       },
       "USDC": {
-        "schedule": "0 0 */1 * * *",
+        "schedule": "0 */5 * * * *",
         "enabled": true
       },
       "USDT": {
-        "schedule": "0 0 */1 * * *",
+        "schedule": "0 */5 * * * *",
         "enabled": true
       }
     }
   },
   "discord": {
     "webhookUrl": "DISCORD_WEBHOOK_URL",
-    "enableTransactionAlert": true,
-    "enablePriceUpdateAlert": true,
-    "enableCronJobAlert": true,
+    "enableTransactionAlert": false,
+    "enablePriceUpdateAlert": false,
+    "enableCronJobAlert": false,
     "enableServiceStatusAlert": true,
     "enableSystemHealthAlert": true,
     "enableErrorAlert": true
