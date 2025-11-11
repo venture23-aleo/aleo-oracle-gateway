@@ -73,23 +73,23 @@
   "cron": {
     "tokens": {
       "BTC": {
-        "schedule": "0 0 */3 * * *",
+        "schedule": "0 0 */2 * * *",
         "enabled": true
       },
       "ETH": {
-        "schedule": "0 0 */3 * * *",
+        "schedule": "0 0 */2 * * *",
         "enabled": true
       },
       "ALEO": {
-        "schedule": "0 0 */1 * * *",
+        "schedule": "0 */5 * * * *",
         "enabled": true
       },
       "USDC": {
-        "schedule": "0 0 */1 * * *",
+        "schedule": "0 */5 * * * *",
         "enabled": true
       },
       "USDT": {
-        "schedule": "0 0 */1 * * *",
+        "schedule": "0 */5 * * * *",
         "enabled": true
       }
     }
