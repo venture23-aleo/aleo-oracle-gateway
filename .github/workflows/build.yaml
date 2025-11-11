@@ -106,7 +106,7 @@ jobs:
           git fetch origin main
           git checkout main
 
-       - name: Update Kustomize image
+      - name: Update Kustomize image
         run: |
           cd aleo-devops/k8s-deployment/aleo-oracle-gateway/overlays/mainnet
           yq -i '.images[] |= select(.name == "ghcr.io/venture23-aleo/aleo-oracle-gateway").newTag = env(IMAGE_TAG)' kustomization.yaml
