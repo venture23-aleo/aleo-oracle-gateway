@@ -106,11 +106,10 @@ jobs:
           git fetch origin main
           git checkout main
 
-
-      - name: Update Kustomize image
+       - name: Update Kustomize image
         run: |
           cd aleo-devops/k8s-deployment/aleo-oracle-gateway/overlays/mainnet
-          kustomize edit set image aleo-oracle-gateway=ghcr.io/${{ github.repository_owner }}/aleo-oracle-gateway:${IMAGE_TAG}
-          git add .
-          git commit -m "Update aleo-oracle-gateway image to ${IMAGE_TAG}"
+          yq -i '.images[] |= select(.name == "ghcr.io/venture23-aleo/aleo-oracle-gateway").newTag = env(IMAGE_TAG)' kustomization.yaml
+          git add kustomization.yaml
+          git commit -m "Update image tags to ${IMAGE_TAG}"
           git push https://x-access-token:${APP_TOKEN}@github.com/venture23-aleo/aleo-devops.git main
