@@ -74,23 +74,23 @@
     "tokens": {
       "BTC": {
         "schedule": "0 0 */2 * * *",
-        "enabled": true
+        "enabled": false
       },
       "ETH": {
         "schedule": "0 0 */2 * * *",
-        "enabled": true
+        "enabled": false
       },
       "ALEO": {
         "schedule": "0 */5 * * * *",
-        "enabled": true
+        "enabled": false
       },
       "USDC": {
         "schedule": "0 */5 * * * *",
-        "enabled": true
+        "enabled": false
       },
       "USDT": {
         "schedule": "0 */5 * * * *",
-        "enabled": true
+        "enabled": false
       }
     }
   },
