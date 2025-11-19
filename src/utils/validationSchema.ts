@@ -73,7 +73,7 @@ export const configSchema = z.object({
     }, z.array(z.string())),
   }),
 
-  cron: z.object({
+  periodicPriceUpdateCron: z.object({
     tokens: z.record(
       z.string(),
       z.object({
@@ -91,6 +91,28 @@ export const configSchema = z.object({
           if (typeof val === 'boolean') return val;
           return val === 'true';
         }, z.boolean()),
+      })
+    ),
+  }),
+  deviationBasedPriceUpdateCron: z.object({
+    tokens: z.record(
+      z.string(),
+      z.object({
+        schedule: z.string().refine(
+          (val: string) => {
+            const validation = validateCronExpression(val);
+            if (!validation.valid) {
+              return false;
+            }
+            return val;
+          },
+          { message: 'Invalid cron schedule' }
+        ),
+        enabled: z.preprocess((val: unknown) => {
+          if (typeof val === 'boolean') return val;
+          return val === 'true';
+        }, z.boolean()),
+        deviation: z.coerce.number().min(0),
       })
     ),
   }),

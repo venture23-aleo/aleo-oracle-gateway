@@ -75,7 +75,7 @@ Most settings have sensible defaults in `config/default.json`.
 
 - `POST /api/oracle/cron/start` - Start automated updates
 - `POST /api/oracle/cron/stop` - Stop automated updates
-- `GET /api/oracle/cron/status` - Cron job status
+- `GET /api/oracle/cron/stats` - Cron job stats
 
 ## 🏗️ Project Structure
 

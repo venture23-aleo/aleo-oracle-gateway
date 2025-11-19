@@ -70,7 +70,7 @@
       "USDT"
     ]
   },
-  "cron": {
+  "priceUpdateTrackingCron": {
     "tokens": {
       "BTC": {
         "schedule": "0 0 */2 * * *",
@@ -91,6 +91,35 @@
       "USDT": {
         "schedule": "0 */5 * * * *",
         "enabled": true
+      }
+    }
+  },
+  "deviationTrackingCron": {
+    "tokens": {
+      "BTC": {
+        "deviation": 2,
+        "schedule": "0 0 */2 * * *",
+        "enabled": false
+      },
+      "ETH": {
+        "deviation": 2,
+        "schedule": "0 0 */2 * * *",
+        "enabled": false
+      },
+      "ALEO": {
+        "deviation": 3,
+        "schedule": "0 */5 * * * *",
+        "enabled": false
+      },
+      "USDC": {
+        "deviation": 0.5,
+        "schedule": "0 */5 * * * *",
+        "enabled": false
+      },
+      "USDT": {
+        "deviation": 0.5,
+        "schedule": "0 */5 * * * *",
+        "enabled": false
       }
     }
   },

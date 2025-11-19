@@ -16,8 +16,9 @@ export const IS_DEVELOPMENT: boolean = NODE_ENV === 'development';
 
 export const serverConfig = result.data.server;
 export const discordConfig = result.data.discord;
-export const cronConfig = result.data.cron;
+export const periodicPriceUpdateCronConfig = result.data.periodicPriceUpdateCron;
 export const oracleConfig = result.data.oracle;
 export const securityConfig = result.data.security;
 export const leoCliConfig = result.data.leoCli;
 export const queueConfig = result.data.queue;
+export const deviationBasedPriceUpdateCronConfig = result.data.deviationBasedPriceUpdateCron;

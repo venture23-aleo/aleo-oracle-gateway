@@ -36,6 +36,25 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
     }
   );
 
+
+  router.post('/verulend-attestation-reports', async (req: Request, res: Response) => {
+    try {
+      const result = await oracleService.prepareAttestationReportForVerulend();
+      return res.json({
+        success: true,
+        message: 'Verulend attestation reports prepared successfully',
+        data: result,
+      });
+    } catch (error) {
+      logError('API Error: prepareAttestationReportForVerulend', error as Error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to prepare verulend attestation reports',
+        error: (error as Error).message,
+      });
+    }
+  });
+
   // API Key validation middleware for all Oracle endpoints
   router.use(validateInternalApiKey);
 
@@ -43,7 +62,7 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
   router.get('/status', (req: Request, res: Response) => {
     res.json({
       initialized: oracleService.isInitialized,
-      cronJob: oracleService.getCronJobStatus(),
+      cronJobs: oracleService.getCronJobStats(),
       supportedCoins: oracleConfig.supportedCoins,
     });
   });
@@ -152,7 +171,7 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
           });
         }
 
-        const result = await oracleService.handlePriceUpdateCron(coinName.toUpperCase());
+        const result = await oracleService.handlePeriodicPriceUpdateCron(coinName.toUpperCase());
 
         if (result?.errorMsg) {
           return res.status(500).json({
@@ -194,7 +213,7 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
       await Promise.all(
           COIN_LIST.map(async (coinName) => {
             try { 
-              const result = await oracleService.handlePriceUpdateCron(coinName);
+              const result = await oracleService.handlePeriodicPriceUpdateCron(coinName);
               if (result?.errorMsg) {
                 errors.push({ coinName, error: result.errorMsg });
               } else {
@@ -287,7 +306,7 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
             message: `Supported coins: ${COIN_LIST.join(', ')}`,
           });
         }
-        oracleService.stopCronJob(coinName?.toUpperCase() || null);
+        // oracleService.stopCronJob(coinName?.toUpperCase() || null);
         res.json({
           success: true,
           message: 'Cron job stopped successfully',
@@ -309,7 +328,7 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
 
   // Get cron job status
   router.get(
-    '/cron/status',
+    '/cron/stats',
     async (req: Request, res: Response): Promise<void | Response<any, Record<string, any>>> => {
       try {
         const { coinName } = req.params;
@@ -320,21 +339,21 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
             message: `Supported coins: ${COIN_LIST.join(', ')}`,
           });
         }
-        const status = oracleService.getCronJobStatus(coinName?.toUpperCase() || null);
+        const stats = oracleService.getCronJobStats(coinName?.toUpperCase() || null);
         res.json({
           success: true,
-          message: 'Cron job status retrieved successfully',
-          data: status,
+          message: 'Cron job stats retrieved successfully',
+          data: stats,
         });
       } catch (error) {
-        logError('API Error: getCronJobStatus', error as Error);
+        logError('API Error: getCronJobStats', error as Error);
         await discordNotifier.sendErrorAlert(error as Error, {
-          operation: 'api_get_cron_status',
-          endpoint: '/api/oracle/cron/status',
+          operation: 'api_get_cron_stats',
+          endpoint: '/api/oracle/cron/stats',
         });
         res.status(500).json({
           success: false,
-          message: 'Failed to get cron job status',
+          message: 'Failed to get cron job stats',
           error: (error as Error).message,
         });
       }
@@ -362,7 +381,7 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
         data: stats,
       });
     } catch (error) {
-      logError('API Error: updatePrices', error as Error);
+      logError('API Error: getStats', error as Error);
       await discordNotifier.sendErrorAlert(error as Error, {
         operation: 'api_get_stats',
         endpoint: '/api/oracle/stats',
