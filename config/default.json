@@ -70,7 +70,7 @@
       "USDT"
     ]
   },
-  "priceUpdateTrackingCron": {
+  "periodicPriceUpdateCron": {
     "tokens": {
       "BTC": {
         "schedule": "0 0 */2 * * *",
@@ -94,7 +94,7 @@
       }
     }
   },
-  "deviationTrackingCron": {
+  "deviationBasedPriceUpdateCron": {
     "tokens": {
       "BTC": {
         "deviation": 2,
