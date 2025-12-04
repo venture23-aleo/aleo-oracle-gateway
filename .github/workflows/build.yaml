@@ -121,9 +121,11 @@ jobs:
 
 
       - name: Update Kustomize image
+        env:
+          PAT: ${{ secrets.CI_V23_PAT }}
         run: |
           cd aleo-devops/k8s-deployment/aleo-oracle-gateway/overlays/mainnet
           yq -i '.images[] |= select(.name == "ghcr.io/venture23-aleo/aleo-oracle-gateway").newTag = env(IMAGE_TAG)' kustomization.yaml
           git add kustomization.yaml
           git commit -m "Update image tags to ${IMAGE_TAG}"
-          git push https://x-access-token:${APP_TOKEN}@github.com/venture23-aleo/aleo-devops.git main
+          git push https://x-access-token:${PAT}@github.com/venture23-aleo/aleo-devops.git main
