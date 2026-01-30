@@ -12,9 +12,18 @@
     "enableResourceProfiling": false,
     "resourceProfilingInterval": 5000,
     "network": "testnet",
-    "endpoint": "https://api.explorer.provable.com/v1"
+    "endpoint": "https://api.explorer.provable.com/v2"
   },
   "oracle": {
+    "provableDelegatedProving": {
+      "enabled": true,
+      "aleoApiHost": "https://api.explorer.provable.com/v2",
+      "proverUrl": "",
+      "baseFeeCredits": 0,
+      "priorityFeeCredits": 0,
+      "privateFee": false,
+      "broadcast": true
+    },
     "verifyAttestation": true,
     "attestationRequest": {
       "url": "price_feed: {{COIN_NAME}}",
@@ -27,17 +36,11 @@
       }
     },
     "verifier": {
-      "address": "aleorclvrfy.venture23.xyz",
-      "port": 443,
-      "https": true,
-      "resolve": true,
-      "tls": {
-        "certPath": "./certs/verification/client.crt",
-        "keyPath": "./certs/verification/client.key",
-        "caPath": "./certs/verification/ca.crt",
-        "rejectUnauthorized": false,
-        "servername": "aleorclvrfy.venture23.xyz"
-      }
+      "address": "localhost",
+      "port": 8080,
+      "https": false,
+      "resolve": false,
+      "tls": null
     },
     "notarizers": [
       {
@@ -55,16 +58,15 @@
       }
     ],
     "aleoProgram": {
-      "name": "vlink_oracle_v2.aleo",
+      "name": "veru_oracle_interface_v5.aleo",
       "function": {
         "setUniqueId": "set_unique_id",
-        "setSgxData": "set_data_sgx",
+        "setSingleSgxData": "set_single_data_sgx",
+        "setMultipleSgxData": "set_five_data_sgx",
         "setPublicKey": "set_key"
       }
     },
     "supportedCoins": [
-      "BTC",
-      "ETH",
       "ALEO",
       "USDC",
       "USDT"
@@ -74,21 +76,25 @@
     "tokens": {
       "BTC": {
         "schedule": "0 0 */2 * * *",
-        "enabled": true
+        "enabled": false
       },
       "ETH": {
         "schedule": "0 0 */2 * * *",
-        "enabled": true
+        "enabled": false
       },
       "ALEO": {
         "schedule": "0 */5 * * * *",
-        "enabled": true
+        "enabled": false
       },
       "USDC": {
         "schedule": "0 */5 * * * *",
-        "enabled": true
+        "enabled": false
       },
       "USDT": {
+        "schedule": "0 */5 * * * *",
+        "enabled": false
+      },
+      "ALL": {
         "schedule": "0 */5 * * * *",
         "enabled": true
       }
@@ -119,6 +125,11 @@
       "USDT": {
         "deviation": 0.5,
         "schedule": "0 */5 * * * *",
+        "enabled": false
+      },
+      "ALL": {
+        "deviation": 0.5,
+        "schedule": "0 0 */1 * * *",
         "enabled": false
       }
     }

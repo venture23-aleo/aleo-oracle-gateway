@@ -30,6 +30,43 @@ export const configSchema = z.object({
       requestHeaders: z.record(z.string(), z.string()).optional(),
     }),
     leoExecutorApiUrl: z.url().optional(),
+    provableDelegatedProving: z
+      .object({
+        enabled: z.coerce.boolean(),
+        aleoApiHost: z.preprocess(
+          (val: unknown) => (val === '' ? undefined : val),
+          z.string().url().optional()
+        ),
+        proverUrl: z.preprocess(
+          (val: unknown) => (val === '' ? undefined : val),
+          z.string().url().optional()
+        ),
+        apiKey: z.preprocess(
+          (val: unknown) => (val === '' ? undefined : val),
+          z.string().min(1).optional()
+        ),
+        consumerId: z.preprocess(
+          (val: unknown) => (val === '' ? undefined : val),
+          z.string().min(1).optional()
+        ),
+        baseFeeCredits: z.preprocess(
+          (val: unknown) => (val === '' ? undefined : val),
+          z.coerce.number().optional()
+        ),
+        priorityFeeCredits: z.preprocess(
+          (val: unknown) => (val === '' ? undefined : val),
+          z.coerce.number().min(0).optional()
+        ),
+        privateFee: z.preprocess(
+          (val: unknown) => (val === '' ? undefined : val),
+          z.coerce.boolean().optional()
+        ),
+        broadcast: z.preprocess(
+          (val: unknown) => (val === '' ? undefined : val),
+          z.coerce.boolean().optional()
+        ),
+      })
+      .optional(),
     verifyAttestation: z.coerce.boolean(),
     verifier: z.object({
       address: z.string().regex(/^[-a-zA-Z0-9.]+$/),
@@ -61,7 +98,8 @@ export const configSchema = z.object({
       name: z.string().regex(/^[a-zA-Z0-9_\.]+$/),
       function: z.object({
         setUniqueId: z.string(),
-        setSgxData: z.string(),
+        setSingleSgxData: z.string(),
+        setMultipleSgxData: z.string(),
         setPublicKey: z.string(),
       }),
     }),

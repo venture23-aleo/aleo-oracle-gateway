@@ -20,6 +20,17 @@
       "name": "ORACLE_PROGRAM_NAME"
     },
     "leoExecutorApiUrl": "LEO_EXECUTOR_API_URL",
+    "provableDelegatedProving": {
+      "enabled": "PROVABLE_DELEGATED_PROVING_ENABLED",
+      "aleoApiHost": "PROVABLE_ALEO_API_HOST",
+      "proverUrl": "PROVABLE_PROVER_URL",
+      "apiKey": "PROVABLE_API_KEY",
+      "consumerId": "PROVABLE_CONSUMER_ID",
+      "baseFeeCredits": "PROVABLE_BASE_FEE_CREDITS",
+      "priorityFeeCredits": "PROVABLE_PRIORITY_FEE_CREDITS",
+      "privateFee": "PROVABLE_PRIVATE_FEE",
+      "broadcast": "PROVABLE_PROVER_BROADCAST"
+    },
     "verifier": {
       "address": "ORACLE_VERIFIER_ADDRESS",
       "port": "ORACLE_VERIFIER_PORT",

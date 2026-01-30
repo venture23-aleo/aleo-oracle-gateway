@@ -198,18 +198,23 @@ export const extractTransactionId = (leoResult: LeoExecutionResult): string | nu
   return match ? match[0] : null;
 };
 
+
 /**
  * 
  */
 export const delegateAleoTransaction = async ({ inputs, functionName, label }: LeoExecutionParams): Promise<LeoExecutionResult> => {
   try {
+    if (!oracleConfig.leoExecutorApiUrl) {
+      throw new Error('LEO_EXECUTOR_API_URL is not set (required for leo executor delegation)');
+    }
+
     const command = `execute ${aleoProgramName}/${functionName} ${inputs.map(input => `"${input}"`).join(' ')} --network ${leoCliConfig.network} --endpoint ${leoCliConfig.endpoint} --broadcast -y -d --home /tmp`;
 
     const requestBody = { cmd: command, timeout: "400s" }; // Timeout is 300 seconds
     const requestHeaders = { 'Content-Type': 'application/json' };
 
     const response = await axios.post(
-      oracleConfig.leoExecutorApiUrl!,
+      oracleConfig.leoExecutorApiUrl,
       requestBody,
       { headers: requestHeaders }
     );

@@ -1,6 +1,8 @@
 import {
+  AttestationRequest,
   EnclaveInfo,
   OracleClient,
+  OracleData,
   type AttestationResponse,
 } from '@venture23-aleo/aleo-oracle-sdk';
 import { createWriteStream, existsSync, mkdirSync, readFileSync, type WriteStream } from 'node:fs';
@@ -11,12 +13,15 @@ import {
   extractTransactionId,
   type LeoExecutionResult,
 } from '@utils/leoExecutor.js';
+import { executeWithProvableDelegatedProving } from '@utils/provableDelegatedProving.js';
 import { log, logDebug, logError, logWarn } from '@utils/logger.js';
 import { discordNotifier } from '@utils/discordNotifier.js';
 import { periodicPriceUpdateCronConfig, deviationBasedPriceUpdateCronConfig, oracleConfig } from '@configs/index.js';
 import { retry } from '@utils/pRetry.js';
 import { CronJob, validateCronExpression } from 'cron';
 import z from 'zod';
+import { AttestationResult } from '@venture23-aleo/aleo-oracle-sdk/dist/types/attestation';
+import SuperJSON from 'superjson';
 
 /**
  * Oracle configuration
@@ -30,7 +35,8 @@ const {
     function: {
       setUniqueId: SET_UNIQUE_ID_FUNCTION_NAME,
       setPublicKey: SET_PUBLIC_KEY_FUNCTION_NAME,
-      setSgxData: SET_SGX_DATA_FUNCTION_NAME,
+      setSingleSgxData: SET_SINGLE_SGX_DATA_FUNCTION_NAME,
+      setMultipleSgxData: SET_MULTIPLE_SGX_DATA_FUNCTION_NAME
     },
   },
 } = oracleConfig;
@@ -53,8 +59,8 @@ interface CoinPriceData {
  * @interface SgxDataResult
  */
 interface SgxDataResult {
-  /** The name of the coin */
-  coinName: string;
+  /** The tokens */
+  tokens: string[];
   /** The transaction ID */
   txnId: string | null;
   /** The error message */
@@ -101,9 +107,18 @@ interface ServiceStats {
 }
 
 interface SetSgxDataParams {
-  coinName: string;
+  tokens: string[];
   checkDeviation: boolean;
 }
+
+interface VerulendAttestationReport {
+  tokens: string[];
+  report: string;
+  userData: string;
+  signature: string;
+  address: string;
+}
+
 
 export interface OracleServiceInterface {
   /** Whether the service is initialized */
@@ -116,9 +131,9 @@ export interface OracleServiceInterface {
   // setSignerPublicKey(publicKey: string): Promise<any>;
 
   /** Get the attestation report */
-  getAttestationReport(coinName: string): Promise<AttestationResponse>;
+  getAttestationReport(tokens: string[]): Promise<AttestationResponse>;
   /** Prepare the attestation report for verulend */
-  prepareAttestationReportForVerulend(): Promise<AttestationResponse[]>;
+  prepareAttestationReportForVerulend(): Promise<VerulendAttestationReport>;
   /** Set the SGX data */
   setSgxData(params: SetSgxDataParams): Promise<any>;
   /** Start the price update cron job */
@@ -198,7 +213,7 @@ export class OracleService implements OracleServiceInterface {
       this.isInitialized = true;
       log('Oracle Service initialized successfully');
 
-      this.startCronJob();
+      this.startCronJob('ALL');
     } catch (error) {
       logError('Failed to initialize Oracle Service', error as Error);
       await discordNotifier.sendErrorAlert(error as Error, {
@@ -215,7 +230,7 @@ export class OracleService implements OracleServiceInterface {
    * @returns The attestation request
    */
   buildAttestationRequest(coinName: string): any {
-    const attestationRequest = oracleConfig.attestationRequest;
+    const attestationRequest = { ...oracleConfig.attestationRequest };
     attestationRequest.url = `price_feed: ${coinName.toLowerCase()}`;
     return attestationRequest;
   }
@@ -232,7 +247,7 @@ export class OracleService implements OracleServiceInterface {
     const protocol = notarizerInfo!.https ? 'https' : 'http';
     const url = `${protocol}://${notarizerInfo!.address}:${notarizerInfo!.port}${endpoint}`;
     logDebug(
-      `[requestNotarizer] ${method.toUpperCase()} ${url} with payload: ${JSON.stringify(payload)}`
+      `[requestNotarizer] ${method.toUpperCase()} ${url} with payload: ${SuperJSON.stringify(payload)}`
     );
     try {
       const response = await axios.request({
@@ -243,7 +258,7 @@ export class OracleService implements OracleServiceInterface {
         },
         ...(method === 'get' ? { params: payload } : { data: payload }),
       });
-      logDebug(`[requestNotarizer] Response from ${url}: ${JSON.stringify(response.data)}`);
+      logDebug(`[requestNotarizer] Response from ${url}: ${SuperJSON.stringify(response.data)}`);
       return response.data;
     } catch (error) {
       logError(`[requestNotarizer] Error requesting ${url}:`, error);
@@ -262,7 +277,7 @@ export class OracleService implements OracleServiceInterface {
     const protocol = verifier.https ? 'https' : 'http';
     const url = `${protocol}://${verifier.address}:${verifier.port}${endpoint}`;
     logDebug(
-      `[requestVerifier] ${method.toUpperCase()} ${url} with payload: ${JSON.stringify(payload)}`
+      `[requestVerifier] ${method.toUpperCase()} ${url} with payload: ${SuperJSON.stringify(payload)}`
     );
     try {
       const response = await axios.request({
@@ -273,7 +288,7 @@ export class OracleService implements OracleServiceInterface {
         },
         ...(method === 'get' ? { params: payload } : { data: payload }),
       });
-      logDebug(`[requestVerifier] Response from ${url}: ${JSON.stringify(response.data)}`);
+      logDebug(`[requestVerifier] Response from ${url}: ${SuperJSON.stringify(response.data)}`);
       return response.data;
     } catch (error) {
       logError(`[requestVerifier] Error requesting ${url}:`, error);
@@ -382,7 +397,7 @@ export class OracleService implements OracleServiceInterface {
       [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
     }
 
-    logDebug(`Shuffled notarizers: ${JSON.stringify(shuffled)}`);
+    logDebug(`Shuffled notarizers: ${SuperJSON.stringify(shuffled)}`);
     return shuffled;
   }
 
@@ -408,12 +423,17 @@ export class OracleService implements OracleServiceInterface {
     return false;
   }
 
-  async getAttestationReport(coinName: string): Promise<AttestationResponse> {
-    const requestString = `[getAttestationReport:${coinName}]`;
+  async getAttestationReport(tokens: string[]): Promise<AttestationResponse> {
+    const requestString = `[getAttestationReport:${tokens.join(',')}]`;
     let result: AttestationResponse | null = null;
     try {
-      const attestationRequest = this.buildAttestationRequest(coinName);
-      logDebug(`${requestString} Attestation Request: ${JSON.stringify(attestationRequest)}`);
+      if (tokens.length === 0) {
+        throw new Error('No tokens provided');
+      }
+
+      let attestationRequest: AttestationRequest[] = tokens.map((token) => this.buildAttestationRequest(token));
+
+      log(`${requestString} Attestation request: ${SuperJSON.stringify(attestationRequest)}`);
       const shuffledNotarizers = this.shuffleNotarizers();
       let success = false;
       let errorMsg: string | null = null;
@@ -426,7 +446,7 @@ export class OracleService implements OracleServiceInterface {
 
           shuffledNotarizers.splice(randomlySelectedIndex, 1);
 
-          logDebug(`${requestString} Selected Notarizer: ${JSON.stringify(selectedNotarizer)}`);
+          logDebug(`${requestString} Selected Notarizer: ${SuperJSON.stringify(selectedNotarizer)}`);
 
           const oracleClient = new OracleClient({
             notarizer: selectedNotarizer!,
@@ -435,11 +455,14 @@ export class OracleService implements OracleServiceInterface {
             quiet: false,
           })
 
-          const notarizeResult = await oracleClient.notarize(attestationRequest);
-          // logDebug(`[setSgxData] Attestation result: ${JSON.stringify(notarizeResult)}`);
+          const notarizeResult = await oracleClient.notarize(attestationRequest as unknown as AttestationRequest, {
+            timeout: 10000,
+            dataShouldMatch: false,
+          });
+          // logDebug(`[setSgxData] Attestation result: ${SuperJSON.stringify(notarizeResult)}`);
 
           if (!notarizeResult || notarizeResult.length === 0) {
-            errorMsg = `No notarization result received for ${coinName}`;
+            errorMsg = `No notarization result received for ${tokens}`;
             throw new Error(errorMsg);
           }
 
@@ -465,27 +488,34 @@ export class OracleService implements OracleServiceInterface {
     }
 
     if (!result) {
-      throw new Error(`No attestation report received for ${coinName}`);
+      throw new Error(`No attestation report received for ${tokens}`);
     }
 
     return result as AttestationResponse;
   }
 
 
-  async prepareAttestationReportForVerulend(): Promise<AttestationResponse[]> {
+  async prepareAttestationReportForVerulend(): Promise<VerulendAttestationReport> {
     const requestString = `[prepareAttestationReportForVerulend]`;
     try {
-
-      const tokens = ['ALEO', 'USDC', 'USDT'];
-      const responses: AttestationResponse[] = [];
-
-      for (const token of tokens) {
-        const result = await this.getAttestationReport(token);
-        logDebug(`${requestString} Attestation report for ${token}: ${JSON.stringify(result)}`);
-        responses.push(result);
+      const tokens = ['ALEO', 'USDC', 'USDT'] as string[];
+      const result = await retry({ func: () => this.getAttestationReport(tokens), label: `[prepareAttestationReportForVerulend:${tokens}]`, retries: 3 });
+      if (!result) {
+        throw new Error(`No attestation report received for ${tokens}`);
       }
-
-      return responses;
+      const { oracleData } = result;
+      const { report, userData, signature, address } = oracleData
+      if (!report || !userData || !signature || !address) {
+        throw new Error(`No attestation report received for ${tokens.join(',')}`);
+      }
+      const finalResult = {
+        tokens,
+        report,
+        userData,
+        signature,
+        address,
+      };
+      return finalResult as VerulendAttestationReport;
     } catch (error) {
       logError(`${requestString} error preparing attestation report for verulend`, error as Error);
       throw error;
@@ -497,8 +527,8 @@ export class OracleService implements OracleServiceInterface {
    * @param coinName - The name of the coin
    * @returns The coin name, transaction ID, and error message
    */
-  async setSgxData({ coinName, checkDeviation = false }: SetSgxDataParams): Promise<SgxDataResult> {
-    const requestString = `[setSgxData:${coinName}]`;
+  async setSgxData({ tokens, checkDeviation = false }: SetSgxDataParams): Promise<SgxDataResult> {
+    const requestString = `[setSgxData:${tokens.join(',')}]`;
     try {
       let success = false;
 
@@ -506,67 +536,88 @@ export class OracleService implements OracleServiceInterface {
 
       let errorMsg = null;
 
-      while (!success) {
-        try {
-          const result = await this.getAttestationReport(coinName);
-          const {
-            oracleData: { report, userData, signature, address, requestHash },
+
+      try {
+        const result = await this.getAttestationReport(tokens);
+        const {
+          oracleData: { report, userData, signature, address, requestHash },
+          timestamp,
+          attestationData,
+          attestationResults
+        } = result as any;
+
+        if (!attestationResults || attestationResults.length === 0) {
+          throw new Error(`No attestation results received for ${tokens.join(',')}`);
+        }
+
+        logDebug(`${requestString} Attestation data: ${attestationData}`);
+
+        await Promise.all(attestationResults.map(async (attestationResult: AttestationResult, index: number) => {
+          const { timestamp, attestationData } = attestationResult;
+          await this.trackCoinPrice({ coinName: tokens[index]!, timestamp, price: attestationData });
+        }));
+
+        let shouldUpdatePrice = true;
+
+        if (checkDeviation) {
+          for (const token of tokens) {
+            const lastPriceData = this.getLastTrackedPrice(token) as { price: number; timestamp: number };
+            if (!lastPriceData) {
+              continue;
+            }
+            shouldUpdatePrice = this.checkTokenPriceDeviation(token, parseFloat(attestationData), lastPriceData);
+            if (shouldUpdatePrice) {
+              break;
+            }
+          }
+        }
+
+        if (!shouldUpdatePrice) {
+          success = true;
+          response = { tokens, txnId: null, errorMsg: null } as SgxDataResult;
+          return response;
+        }
+
+        const executionParams = {
+          inputs: [userData, report, signature, address],
+          functionName:
+            tokens.length === 1
+              ? SET_SINGLE_SGX_DATA_FUNCTION_NAME
+              : SET_MULTIPLE_SGX_DATA_FUNCTION_NAME,
+          label: `SET_SGX_DATA:${tokens.join(',')}`,
+        };
+
+        const leoResult = oracleConfig.provableDelegatedProving?.enabled
+          ? await executeWithProvableDelegatedProving(executionParams)
+          : await delegateAleoTransaction(executionParams);
+
+        const transactionId = extractTransactionId(leoResult as LeoExecutionResult);
+        if (transactionId) {
+          log(`${requestString} Transaction ID: ${transactionId}`);
+
+          // Send success notification with transaction details
+          await discordNotifier.sendTransactionAlert(tokens.join(','), transactionId, 'confirmed', {
+            enclaveUrl: result.enclaveUrl,
+            price: attestationData,
+            requestHash,
             timestamp,
-            attestationData,
-          } = result;
-
-          logDebug(`${requestString} Attestation data: ${attestationData}`);
-          await this.trackCoinPrice({ coinName, timestamp, price: attestationData });
-
-          let shouldUpdatePrice = true;
-
-          if (checkDeviation) {
-            shouldUpdatePrice = this.checkTokenPriceDeviation(coinName, parseFloat(attestationData), this.getLastTrackedPrice(coinName) as { price: number; timestamp: number });
-          }
-
-          if (!shouldUpdatePrice) {
-            success = true;
-            continue;
-          }
-
-          const leoResult = await delegateAleoTransaction({
-            inputs: [userData, report, signature, address],
-            functionName: SET_SGX_DATA_FUNCTION_NAME,
-            label: `SET_SGX_DATA:${coinName}`,
           });
 
-          const transactionId = extractTransactionId(leoResult as LeoExecutionResult);
-          if (transactionId) {
-            log(`${requestString} Transaction ID: ${transactionId}`);
+          success = true;
 
-            // Send success notification with transaction details
-            await discordNotifier.sendTransactionAlert(coinName, transactionId, 'confirmed', {
-              enclaveUrl: result.enclaveUrl,
-              price: attestationData,
-              requestHash,
-              timestamp,
-            });
-
-            success = true;
-
-            response = { coinName, txnId: transactionId, errorMsg: null }
-          } else {
-            errorMsg = `Transaction ID not found in leo output for ${coinName} with error ${leoResult?.errorOutput}`;
-            throw new Error(errorMsg);
-          }
-          
-        } catch (error) {
-          if (!errorMsg) {
-            errorMsg = (error as Error).message;
-          }
-          success = false;
-          logError(`${requestString} ${errorMsg}`);
-          log(`${requestString} Trying next notarizer...`);
+          response = { tokens, txnId: transactionId, errorMsg: null };
+        } else {
+          errorMsg = `Transaction ID not found in leo output for ${tokens.join(',')} with error ${leoResult?.errorOutput}`;
+          throw new Error(errorMsg);
         }
-      }
 
-      if(!success) {
-        throw new Error(errorMsg as string);
+      } catch (error) {
+        if (!errorMsg) {
+          errorMsg = (error as Error).message;
+        }
+        success = false;
+        logError(`${requestString} ${errorMsg}`);
+        throw error;
       }
 
       return response as SgxDataResult;
@@ -578,11 +629,11 @@ export class OracleService implements OracleServiceInterface {
       // await discordNotifier.sendPriceUpdateAlert(coinName, 'failed', null, error as Error);
       await discordNotifier.sendErrorAlert(error as Error, {
         operation: 'setSgxData',
-        coinName,
+        tokens: tokens.join(','),
       });
 
       const err = new Error('Error setting the sgx data');
-      (err as any).data = { coinName, txnId: null, errorMsg: (error as Error)?.message };
+      (err as any).data = { tokens: tokens.join(','), txnId: null, errorMsg: (error as Error)?.message };
       throw err;
     }
   }
@@ -594,7 +645,7 @@ export class OracleService implements OracleServiceInterface {
    */
   getLastTrackedPrice(coinName: string): { price: number; timestamp: number } | null {
     try {
-      const filePath = `./ prices / ${coinName.toLowerCase()} _price.txt`;
+      const filePath = `./prices/${coinName.toLowerCase()}_price.txt`;
       if (!existsSync(filePath)) {
         logDebug(`Price file not found for ${coinName}: ${filePath} `);
         return null;
@@ -639,7 +690,8 @@ export class OracleService implements OracleServiceInterface {
    * @returns The void
    */
   async handleDeviationBasedPriceUpdateCron(coinName: string): Promise<SgxDataResult | null> {
-    const requestString = `[handleDeviationBasedPriceUpdateCron:${coinName}]`;
+    const tokens = coinName === 'ALL' ? COIN_LIST : [coinName];
+    const requestString = `[handleDeviationBasedPriceUpdateCron:${tokens.join(',')}]`;
     try {
       const requestString = `[handleDeviationBasedPriceUpdateCron:${coinName}]`;
       if (!this.deviationPriceUpdateStats[coinName]) {
@@ -652,7 +704,6 @@ export class OracleService implements OracleServiceInterface {
           lastError: null,
           cronEnabled: true,
           cronSchedule: deviationBasedPriceUpdateCronConfig.tokens[coinName]?.schedule || '',
-
         };
       }
 
@@ -663,7 +714,7 @@ export class OracleService implements OracleServiceInterface {
 
       const startTime = Date.now();
       logDebug(
-        `${requestString} Starting deviation check cycle ${stats.totalRuns} for ${coinName}`
+        `${requestString} Starting deviation check cycle ${stats.totalRuns} for ${tokens.join(',')}`
       );
 
       // Get the last tracked price
@@ -672,7 +723,7 @@ export class OracleService implements OracleServiceInterface {
       if (!lastPriceData) {
         logDebug(`${requestString} No previous price found, updating price directly`);
         // If no previous price, update directly
-        const result = await this.setSgxData({ coinName, checkDeviation: true });
+        const result = await this.setSgxData({ tokens, checkDeviation: true });
         stats.successfulRuns++;
         stats.lastSuccess = new Date();
         return result;
@@ -683,20 +734,20 @@ export class OracleService implements OracleServiceInterface {
 
       let response: SgxDataResult | null = null;
 
-      const coinStartTime = Date.now();
+      const tokensStartTime = Date.now();
       try {
         log(`${requestString} Updating ${coinName} price...`);
 
-        response = await this.setSgxData({ coinName, checkDeviation: true });
+        response = await this.setSgxData({ tokens: [coinName], checkDeviation: true });
 
-        const coinDuration = Date.now() - coinStartTime;
+        const tokensDuration = Date.now() - tokensStartTime;
 
-        log(`${requestString} Successfully updated ${coinName} price in ${coinDuration} ms`);
+        log(`${requestString} Successfully updated ${tokens.join(',')} price in ${tokensDuration} ms`);
 
         successCount++;
       } catch (err) {
-        const coinDuration = Date.now() - coinStartTime;
-        logError(`${requestString} Failed to update ${coinName} price after ${coinDuration} ms`, err as Error);
+        const tokensDuration = Date.now() - tokensStartTime;
+        logError(`${requestString} Failed to update ${tokens.join(',')} price after ${tokensDuration} ms`, err as Error);
         errorCount++;
         response = (err as any)?.data as SgxDataResult;
       }
@@ -735,7 +786,8 @@ export class OracleService implements OracleServiceInterface {
    * @returns The SgxDataResult
    */
   async handlePeriodicPriceUpdateCron(coinName: string): Promise<SgxDataResult | null> {
-    const requestString = `[handlePeriodicPriceUpdateCron:${coinName}]`;
+    const tokens = coinName === 'ALL' ? COIN_LIST : [coinName];
+    const requestString = `[handlePeriodicPriceUpdateCron]:${coinName}]`;
     try {
 
       if (!this.periodicPriceUpdateStats[coinName]) {
@@ -758,31 +810,32 @@ export class OracleService implements OracleServiceInterface {
 
       const startTime = Date.now();
       logDebug(
-        `${requestString} Starting price update cycle ${stats.totalRuns} for coins: ${coinName}`
+        `${requestString} Starting price update cycle ${stats.totalRuns} for coins: ${tokens.join(',')}`
       );
 
       // Send started notification
-      await discordNotifier.sendCronJobAlert(`${coinName} price_update`, 'started', null, null);
+      await discordNotifier.sendCronJobAlert(`${tokens.join(',')} price_update`, 'started', null, null);
 
       let successCount = 0;
       let errorCount = 0;
 
       let response: SgxDataResult | null = null;
 
-      const coinStartTime = Date.now();
+
+      const tokensStartTime = Date.now();
       try {
-        log(`${requestString} Updating ${coinName} price...`);
+        log(`${requestString} Updating ${tokens.join(',')} price...`);
 
-        response = await this.setSgxData({ coinName, checkDeviation: false });
+        response = await this.setSgxData({ tokens, checkDeviation: false });
 
-        const coinDuration = Date.now() - coinStartTime;
+        const tokensDuration = Date.now() - tokensStartTime;
 
-        log(`${requestString} Successfully updated ${coinName} price in ${coinDuration} ms`);
+        log(`${requestString} Successfully updated ${tokens.join(',')} price in ${tokensDuration} ms`);
 
         successCount++;
       } catch (err) {
-        const coinDuration = Date.now() - coinStartTime;
-        logError(`${requestString} Failed to update ${coinName} price after ${coinDuration} ms`, err as Error);
+        const tokensDuration = Date.now() - tokensStartTime;
+        logError(`${requestString} Failed to update ${tokens.join(',')} price after ${tokensDuration} ms`, err as Error);
         errorCount++;
         response = (err as any)?.data as SgxDataResult;
       }
@@ -817,7 +870,7 @@ export class OracleService implements OracleServiceInterface {
       logError(`${requestString} Failed to handle periodic price update cron for ${coinName}`, error as Error);
       await discordNotifier.sendErrorAlert(error as Error, {
         operation: 'handlePeriodicPriceUpdateCron',
-        coinName,
+        tokens: tokens.join(','),
       });
       throw error;
     }
@@ -834,8 +887,9 @@ export class OracleService implements OracleServiceInterface {
     const requestString = `[startDeviationBasedPriceUpdateCron]`;
     const coins = coinName ? [coinName] : COIN_LIST;
     for (const coin of coins) {
+      const tokens = coin === 'ALL' ? COIN_LIST : [coin];
       if (this.deviationPriceUpdateCronJob[coin]) {
-        log(`${requestString} Deviation cron job for ${coin} already running`);
+        log(`${requestString} Deviation cron job for ${tokens.join(',')} already running`);
         continue;
       }
 
@@ -846,11 +900,11 @@ export class OracleService implements OracleServiceInterface {
 
       if (tokenConfig?.enabled) {
         log(
-          `${requestString} Starting deviation cron job for ${coin} with schedule ${JSON.stringify(cronSchedule)} `
+          `${requestString} Starting deviation cron job for ${tokens.join(',')} with schedule ${SuperJSON.stringify(cronSchedule)} `
         );
 
         if (!validateCronExpression(cronSchedule! as string)) {
-          log(`${requestString} Invalid cron schedule for ${coin}: ${cronSchedule} `);
+          log(`${requestString} Invalid cron schedule for ${tokens.join(',')}: ${cronSchedule} `);
           continue;
         }
 
@@ -868,7 +922,7 @@ export class OracleService implements OracleServiceInterface {
         }
 
         this.deviationPriceUpdateCronJob[coin] = CronJob.from({
-          name: `Deviation Based Price Update CronJob - ${coin} `,
+          name: `Deviation Based Price Update CronJob - ${tokens.join(',')} `,
           cronTime: cronSchedule! as string,
           onTick: async () => {
             await this.handleDeviationBasedPriceUpdateCron(coin);
@@ -902,8 +956,10 @@ export class OracleService implements OracleServiceInterface {
     const requestString = `[startPeriodicPriceUpdateCron]`;
     const coins = coinName ? [coinName] : COIN_LIST;
     for (const coin of coins) {
+
+      const tokens = coin === 'ALL' ? COIN_LIST : [coin];
       if (this.periodicPriceUpdateCronJob[coin]) {
-        log(`${requestString} Periodic cron job for ${coin} already running`);
+        log(`${requestString} Periodic cron job for ${tokens.join(',')} coin already running`);
         continue;
       }
 
@@ -912,11 +968,11 @@ export class OracleService implements OracleServiceInterface {
 
       if (cronEnabled) {
         if (!validateCronExpression(cronSchedule! as string)) {
-          log(`${requestString} Invalid cron schedule for ${coin}: ${cronSchedule} `);
+          log(`${requestString} Invalid cron schedule for ${tokens.join(',')}: ${cronSchedule} `);
           continue;
         }
         log(
-          `${requestString} Starting periodic cron job for ${coin} with schedule ${JSON.stringify(cronSchedule)}`
+          `${requestString} Starting periodic cron job for ${tokens.join(',')} with schedule ${SuperJSON.stringify(cronSchedule)}`
         );
       }
 
@@ -933,10 +989,10 @@ export class OracleService implements OracleServiceInterface {
 
       if (cronEnabled) {
         this.periodicPriceUpdateCronJob[coin] = CronJob.from({
-          name: `Periodic Price Update CronJob - ${coin}`,
+          name: `Periodic Price Update CronJob - ${tokens.join(',')}`,
           cronTime: cronSchedule! as string,
           onTick: async () => {
-            await this.handlePeriodicPriceUpdateCron(coin);
+            await this.handlePeriodicPriceUpdateCron(coin as string);
           },
           errorHandler: async (error: unknown) => {
             logError('[CronError]', error as Error);
@@ -944,7 +1000,7 @@ export class OracleService implements OracleServiceInterface {
               this.periodicPriceUpdateStats[coin]!.lastError = new Date();
             }
             // Send Discord notification for cron error
-            await discordNotifier.sendCronJobAlert(`${coin} price_update`, 'failed', error as Error);
+            await discordNotifier.sendCronJobAlert(`${tokens.join(',')} price_update`, 'failed', error as Error);
           },
         });
 
@@ -962,9 +1018,9 @@ export class OracleService implements OracleServiceInterface {
    * @param coinName - The name of the coin
    * @returns The void
    */
-  startCronJob(coinName?: string | null): void {
+  startCronJob(coinName: string = 'ALL'): void {
     this.startPeriodicPriceUpdateCron(coinName);
-    this.startDeviationBasedPriceUpdateCron(coinName);
+    // this.startDeviationBasedPriceUpdateCron(coinName);
   }
 
   /**
@@ -972,7 +1028,7 @@ export class OracleService implements OracleServiceInterface {
    * @param coinName - The name of the coin
    * @returns The void
    */
-  stopCronJob(coinName?: string | null): void {
+  stopCronJob(coinName: string = 'ALL'): void {
     this.stopPeriodicPriceUpdateCron(coinName);
     this.stopDeviationBasedPriceUpdateCron(coinName);
   }

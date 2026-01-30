@@ -273,7 +273,7 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
             message: `Supported coins: ${COIN_LIST.join(', ')}`,
           });
         }
-        oracleService.startCronJob(coinName?.toUpperCase() || null);
+        oracleService.startCronJob(coinName?.toUpperCase() || 'ALL');
         res.json({
           success: true,
           message: 'Cron job started successfully',
@@ -306,7 +306,7 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
             message: `Supported coins: ${COIN_LIST.join(', ')}`,
           });
         }
-        // oracleService.stopCronJob(coinName?.toUpperCase() || null);
+        oracleService.stopCronJob(coinName?.toUpperCase() || 'ALL');
         res.json({
           success: true,
           message: 'Cron job stopped successfully',

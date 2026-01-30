@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { log, logError } from '@utils/logger.js';
 import { discordConfig } from '@configs/index.js';
+import SuperJSON from 'superjson';
 
 interface DiscordEmbed {
   title: string;
@@ -103,7 +104,7 @@ class DiscordNotifier {
     if (Object.keys(context).length > 0) {
       embed.fields.push({
         name: '🔍 Context',
-        value: `\`\`\`json\n${JSON.stringify(context, null, 2)}\`\`\``,
+        value: `\`\`\`json\n${SuperJSON.stringify(context)}\`\`\``,
         inline: false,
       });
     }
