@@ -1,9 +1,11 @@
 import {
+  AttestationRequest,
   EnclaveInfo,
   OracleClient,
+  OracleData,
   type AttestationResponse,
 } from '@venture23-aleo/aleo-oracle-sdk';
-import { createWriteStream, existsSync, mkdirSync, type WriteStream } from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, readFileSync, type WriteStream } from 'node:fs';
 import axios from 'axios';
 import {
   delegateAleoTransaction,
@@ -11,12 +13,15 @@ import {
   extractTransactionId,
   type LeoExecutionResult,
 } from '@utils/leoExecutor.js';
+import { executeWithProvableDelegatedProving } from '@utils/provableDelegatedProving.js';
 import { log, logDebug, logError, logWarn } from '@utils/logger.js';
 import { discordNotifier } from '@utils/discordNotifier.js';
-import { cronConfig, oracleConfig } from '@configs/index.js';
+import { periodicPriceUpdateCronConfig, deviationBasedPriceUpdateCronConfig, oracleConfig } from '@configs/index.js';
 import { retry } from '@utils/pRetry.js';
 import { CronJob, validateCronExpression } from 'cron';
 import z from 'zod';
+import { AttestationResult } from '@venture23-aleo/aleo-oracle-sdk/dist/types/attestation';
+import SuperJSON from 'superjson';
 
 /**
  * Oracle configuration
@@ -25,12 +30,14 @@ import z from 'zod';
 const {
   notarizers,
   verifier,
+  verulendSupportedCoins: VERULEND_SUPPORTED_COINS,
   supportedCoins: COIN_LIST,
   aleoProgram: {
     function: {
       setUniqueId: SET_UNIQUE_ID_FUNCTION_NAME,
       setPublicKey: SET_PUBLIC_KEY_FUNCTION_NAME,
-      setSgxData: SET_SGX_DATA_FUNCTION_NAME,
+      setSingleSgxData: SET_SINGLE_SGX_DATA_FUNCTION_NAME,
+      setMultipleSgxData: SET_MULTIPLE_SGX_DATA_FUNCTION_NAME
     },
   },
 } = oracleConfig;
@@ -53,8 +60,8 @@ interface CoinPriceData {
  * @interface SgxDataResult
  */
 interface SgxDataResult {
-  /** The name of the coin */
-  coinName: string;
+  /** The tokens */
+  tokens: string[];
   /** The transaction ID */
   txnId: string | null;
   /** The error message */
@@ -94,8 +101,25 @@ interface ServiceStats {
   /** The memory usage of the service */
   memory: NodeJS.MemoryUsage;
   /** The cron job status */
-  cronJob: Record<string, CoinStats | null>;
+  cronJobs: {
+    periodic: Record<string, CoinStats | null>;
+    deviation: Record<string, CoinStats | null>;
+  };
 }
+
+interface SetSgxDataParams {
+  tokens: string[];
+  checkDeviation: boolean;
+}
+
+interface VerulendAttestationReport {
+  tokens: string[];
+  report: string;
+  userData: string;
+  signature: string;
+  address: string;
+}
+
 
 export interface OracleServiceInterface {
   /** Whether the service is initialized */
@@ -106,16 +130,31 @@ export interface OracleServiceInterface {
   // setSgxUniqueId(uniqueId: string): Promise<any>;
   // /** Set the public key */
   // setSignerPublicKey(publicKey: string): Promise<any>;
+
+  /** Get the attestation report */
+  getAttestationReport(tokens: string[]): Promise<AttestationResponse>;
+  /** Prepare the attestation report for verulend */
+  prepareAttestationReportForVerulend(): Promise<VerulendAttestationReport>;
   /** Set the SGX data */
-  setSgxData(coinName: string): Promise<any>;
-  /** Start the cron job */
+  setSgxData(params: SetSgxDataParams): Promise<any>;
+  /** Start the price update cron job */
   startCronJob(coinName?: string | null): void;
-  /** Stop the cron job */
+  /** Stop the price update cron job */
   stopCronJob(coinName?: string | null): void;
-  /** Get the cron job status */
-  getCronJobStatus(coinName?: string | null): any;
+  /** Get the cron job stats */
+  getCronJobStats(coinName?: string | null): any;
   /** Handle the price update cron */
-  handlePriceUpdateCron(coinName?: string | null): Promise<any>;
+  handlePeriodicPriceUpdateCron(coinName?: string | null): Promise<any>;
+  /** Handle the deviation based price update cron */
+  handleDeviationBasedPriceUpdateCron(coinName?: string | null): Promise<any>;
+  /** Start the periodic price update cron */
+  startPeriodicPriceUpdateCron(coinName?: string | null): void;
+  /** Stop the periodic price update cron */
+  stopPeriodicPriceUpdateCron(coinName?: string | null): void;
+  /** Start the deviation based price update cron */
+  startDeviationBasedPriceUpdateCron(coinName?: string | null): void;
+  /** Stop the deviation based price update cron */
+  stopDeviationBasedPriceUpdateCron(coinName?: string | null): void;
   /** Get the stats */
   getStats(): any;
 }
@@ -123,17 +162,22 @@ export interface OracleServiceInterface {
 export class OracleService implements OracleServiceInterface {
   // private oracleClient: OracleClient;
   public isInitialized: boolean;
-  private stats: Record<string, CoinStats | null>;
-  private cronJob: Record<string, CronJob | null>;
+  private periodicPriceUpdateStats: Record<string, CoinStats | null>;
+  private deviationPriceUpdateStats: Record<string, CoinStats | null>;
+  private periodicPriceUpdateCronJob: Record<string, CronJob | null>;
+  private deviationPriceUpdateCronJob: Record<string, CronJob | null>;
   private coinPriceStream: Record<string, WriteStream>;
+
 
   constructor() {
     // Initialize flag
     this.isInitialized = false;
 
     // Statistics
-    this.stats = {};
-    this.cronJob = {};
+    this.periodicPriceUpdateStats = {};
+    this.deviationPriceUpdateStats = {};
+    this.periodicPriceUpdateCronJob = {};
+    this.deviationPriceUpdateCronJob = {};
     this.coinPriceStream = {};
   }
 
@@ -170,7 +214,7 @@ export class OracleService implements OracleServiceInterface {
       this.isInitialized = true;
       log('Oracle Service initialized successfully');
 
-      this.startCronJob();
+      this.startCronJob('ALL');
     } catch (error) {
       logError('Failed to initialize Oracle Service', error as Error);
       await discordNotifier.sendErrorAlert(error as Error, {
@@ -187,7 +231,7 @@ export class OracleService implements OracleServiceInterface {
    * @returns The attestation request
    */
   buildAttestationRequest(coinName: string): any {
-    const attestationRequest = oracleConfig.attestationRequest;
+    const attestationRequest = { ...oracleConfig.attestationRequest };
     attestationRequest.url = `price_feed: ${coinName.toLowerCase()}`;
     return attestationRequest;
   }
@@ -204,7 +248,7 @@ export class OracleService implements OracleServiceInterface {
     const protocol = notarizerInfo!.https ? 'https' : 'http';
     const url = `${protocol}://${notarizerInfo!.address}:${notarizerInfo!.port}${endpoint}`;
     logDebug(
-      `[requestNotarizer] ${method.toUpperCase()} ${url} with payload: ${JSON.stringify(payload)}`
+      `[requestNotarizer] ${method.toUpperCase()} ${url} with payload: ${SuperJSON.stringify(payload)}`
     );
     try {
       const response = await axios.request({
@@ -215,7 +259,7 @@ export class OracleService implements OracleServiceInterface {
         },
         ...(method === 'get' ? { params: payload } : { data: payload }),
       });
-      logDebug(`[requestNotarizer] Response from ${url}: ${JSON.stringify(response.data)}`);
+      logDebug(`[requestNotarizer] Response from ${url}: ${SuperJSON.stringify(response.data)}`);
       return response.data;
     } catch (error) {
       logError(`[requestNotarizer] Error requesting ${url}:`, error);
@@ -234,7 +278,7 @@ export class OracleService implements OracleServiceInterface {
     const protocol = verifier.https ? 'https' : 'http';
     const url = `${protocol}://${verifier.address}:${verifier.port}${endpoint}`;
     logDebug(
-      `[requestVerifier] ${method.toUpperCase()} ${url} with payload: ${JSON.stringify(payload)}`
+      `[requestVerifier] ${method.toUpperCase()} ${url} with payload: ${SuperJSON.stringify(payload)}`
     );
     try {
       const response = await axios.request({
@@ -245,7 +289,7 @@ export class OracleService implements OracleServiceInterface {
         },
         ...(method === 'get' ? { params: payload } : { data: payload }),
       });
-      logDebug(`[requestVerifier] Response from ${url}: ${JSON.stringify(response.data)}`);
+      logDebug(`[requestVerifier] Response from ${url}: ${SuperJSON.stringify(response.data)}`);
       return response.data;
     } catch (error) {
       logError(`[requestVerifier] Error requesting ${url}:`, error);
@@ -354,31 +398,48 @@ export class OracleService implements OracleServiceInterface {
       [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
     }
 
-    logDebug(`Shuffled notarizers: ${JSON.stringify(shuffled)}`);
+    logDebug(`Shuffled notarizers: ${SuperJSON.stringify(shuffled)}`);
     return shuffled;
   }
 
-  /**
-   * Set the SGX data
-   * @param coinName - The name of the coin
-   * @returns The coin name, transaction ID, and error message
-   */
-  async setSgxData(coinName: string): Promise<SgxDataResult> {
-    const requestString = `[setSgxData:${coinName}]`;
+  checkTokenPriceDeviation(coinName: string, currentPrice: number, lastPriceData: { price: number; timestamp: number }): boolean {
+    const requestString = `[checkDeviationBasedPriceUpdateCron:${coinName}]`;
+    // Calculate deviation percentage
+    const deviationThreshold = deviationBasedPriceUpdateCronConfig.tokens[coinName]?.deviation || 0;
+    const priceDifference = Math.abs(currentPrice - lastPriceData.price);
+    const deviationPercentage = (priceDifference / lastPriceData.price) * 100;
+
+    logDebug(
+      `${requestString} Last price: ${lastPriceData.price}, Current price: ${currentPrice}, Deviation: ${deviationPercentage.toFixed(2)}%, Threshold: ${deviationThreshold}%`
+    );
+
+    // Check if deviation exceeds threshold
+    if (deviationPercentage >= deviationThreshold) {
+      log(
+        `${requestString} Deviation ${deviationPercentage.toFixed(2)}% exceeds threshold ${deviationThreshold}%, updating price...`
+      );
+      return true;
+    }
+
+    return false;
+  }
+
+  async getAttestationReport(tokens: string[]): Promise<AttestationResponse> {
+    const requestString = `[getAttestationReport:${tokens.join(',')}]`;
+    let result: AttestationResponse | null = null;
     try {
-      const attestationRequest = this.buildAttestationRequest(coinName);
-      logDebug(`${requestString} Attestation Request: ${JSON.stringify(attestationRequest)}`);
+      if (tokens.length === 0) {
+        throw new Error('No tokens provided');
+      }
 
+      let attestationRequest: AttestationRequest[] = tokens.map((token) => this.buildAttestationRequest(token));
+
+      log(`${requestString} Attestation request: ${SuperJSON.stringify(attestationRequest)}`);
       const shuffledNotarizers = this.shuffleNotarizers();
-
       let success = false;
-
-      let response = null;
-      
-      let errorMsg = null;
+      let errorMsg: string | null = null;
 
       while (shuffledNotarizers.length > 0 && !success) {
-
         try {
           const randomlySelectedIndex = Math.floor(Math.random() * shuffledNotarizers.length);
 
@@ -386,72 +447,178 @@ export class OracleService implements OracleServiceInterface {
 
           shuffledNotarizers.splice(randomlySelectedIndex, 1);
 
-          logDebug(`${requestString} Selected Notarizer: ${JSON.stringify(selectedNotarizer)}`);
+          logDebug(`${requestString} Selected Notarizer: ${SuperJSON.stringify(selectedNotarizer)}`);
 
           const oracleClient = new OracleClient({
             notarizer: selectedNotarizer!,
             // @ts-expect-error TODO: to add mtls cert 
-            verifier: oracleConfig.verifier!, 
+            verifier: oracleConfig.verifier!,
             quiet: false,
           })
 
-          const notarizeResult = await oracleClient.notarize(attestationRequest);
-          // logDebug(`[setSgxData] Attestation result: ${JSON.stringify(notarizeResult)}`);
+          const notarizeResult = await oracleClient.notarize(attestationRequest as unknown as AttestationRequest, {
+            timeout: 10000,
+            dataShouldMatch: false,
+          });
+          // logDebug(`[setSgxData] Attestation result: ${SuperJSON.stringify(notarizeResult)}`);
 
           if (!notarizeResult || notarizeResult.length === 0) {
-            errorMsg = `No notarization result received for ${coinName}`;
+            errorMsg = `No notarization result received for ${tokens}`;
             throw new Error(errorMsg);
           }
 
-          const result = notarizeResult[0] as AttestationResponse;
+          success = true;
 
-          const {
-            oracleData: { report, userData, signature, address, requestHash },
-            timestamp,
-            attestationData,
-          } = result;
+          result = notarizeResult[0] as AttestationResponse;
 
-          logDebug(`${requestString} Attestation data: ${attestationData}`);
-          await this.trackCoinPrice({ coinName, timestamp, price: attestationData });
-
-          const leoResult = await delegateAleoTransaction({
-            inputs: [userData, report, signature, address],
-            functionName: SET_SGX_DATA_FUNCTION_NAME,
-            label: `SET_SGX_DATA:${coinName}`,
-          });
-
-          const transactionId = extractTransactionId(leoResult as LeoExecutionResult);
-          if (transactionId) {
-            log(`${requestString} Transaction ID: ${transactionId}`);
-
-            // Send success notification with transaction details
-            await discordNotifier.sendTransactionAlert(coinName, transactionId, 'confirmed', {
-              enclaveUrl: result.enclaveUrl,
-              price: attestationData,
-              requestHash,
-              timestamp,
-            });
-
-            success = true;
-
-            response = { coinName, txnId: transactionId, errorMsg: null }
-          } else {
-            errorMsg = `Transaction ID not found in leo output for ${coinName} with error ${leoResult?.errorOutput}`;
-            throw new Error(errorMsg);
-          }
-          
+          break;
         } catch (error) {
-          if (!errorMsg) {
-            errorMsg = (error as Error).message;
-          }
+          logError(`${requestString} error getting attestation report`, error as Error);
           success = false;
           logError(`${requestString} ${errorMsg}`);
           log(`${requestString} Trying next notarizer...`);
         }
       }
+    } catch (error) {
+      logError(`${requestString} error getting attestation report`, error as Error);
+      // await discordNotifier.sendErrorAlert(error as Error, {
+      //   operation: 'getAttestationReport',
+      //   coinName,
+      // });
+      throw error;
+    }
 
-      if(!success) {
-        throw new Error(errorMsg as string);
+    if (!result) {
+      throw new Error(`No attestation report received for ${tokens}`);
+    }
+
+    return result as AttestationResponse;
+  }
+
+
+  async prepareAttestationReportForVerulend(): Promise<VerulendAttestationReport> {
+    const requestString = `[prepareAttestationReportForVerulend]`;
+    try {
+      const tokens = ['ALEO', 'USDC', 'USDT'] as string[];
+      const result = await retry({ func: () => this.getAttestationReport(tokens), label: `[prepareAttestationReportForVerulend:${tokens}]`, retries: 3 });
+      if (!result) {
+        throw new Error(`No attestation report received for ${tokens}`);
+      }
+      const { oracleData } = result;
+      const { report, userData, signature, address } = oracleData
+      if (!report || !userData || !signature || !address) {
+        throw new Error(`No attestation report received for ${tokens.join(',')}`);
+      }
+      const finalResult = {
+        tokens,
+        report,
+        userData,
+        signature,
+        address,
+      };
+      return finalResult as VerulendAttestationReport;
+    } catch (error) {
+      logError(`${requestString} error preparing attestation report for verulend`, error as Error);
+      throw error;
+    }
+  }
+
+  /**
+   * Set the SGX data
+   * @param coinName - The name of the coin
+   * @returns The coin name, transaction ID, and error message
+   */
+  async setSgxData({ tokens, checkDeviation = false }: SetSgxDataParams): Promise<SgxDataResult> {
+    const requestString = `[setSgxData:${tokens.join(',')}]`;
+    try {
+      let success = false;
+
+      let response = null;
+
+      let errorMsg = null;
+
+
+      try {
+        const result = await this.getAttestationReport(tokens);
+        const {
+          oracleData: { report, userData, signature, address, requestHash },
+          timestamp,
+          attestationData,
+          attestationResults
+        } = result as any;
+
+        if (!attestationResults || attestationResults.length === 0) {
+          throw new Error(`No attestation results received for ${tokens.join(',')}`);
+        }
+
+        logDebug(`${requestString} Attestation data: ${attestationData}`);
+
+        await Promise.all(attestationResults.map(async (attestationResult: AttestationResult, index: number) => {
+          const { timestamp, attestationData } = attestationResult;
+          await this.trackCoinPrice({ coinName: tokens[index]!, timestamp, price: attestationData });
+        }));
+
+        let shouldUpdatePrice = true;
+
+        if (checkDeviation) {
+          for (const token of tokens) {
+            const lastPriceData = this.getLastTrackedPrice(token) as { price: number; timestamp: number };
+            if (!lastPriceData) {
+              continue;
+            }
+            shouldUpdatePrice = this.checkTokenPriceDeviation(token, parseFloat(attestationData), lastPriceData);
+            if (shouldUpdatePrice) {
+              break;
+            }
+          }
+        }
+
+        if (!shouldUpdatePrice) {
+          success = true;
+          response = { tokens, txnId: null, errorMsg: null } as SgxDataResult;
+          return response;
+        }
+
+        const executionParams = {
+          inputs: [userData, report, signature, address],
+          functionName:
+            tokens.length === 1
+              ? SET_SINGLE_SGX_DATA_FUNCTION_NAME
+              : SET_MULTIPLE_SGX_DATA_FUNCTION_NAME,
+          label: `SET_SGX_DATA:${tokens.join(',')}`,
+        };
+
+        const leoResult = oracleConfig.provableDelegatedProving?.enabled
+          ? await executeWithProvableDelegatedProving(executionParams)
+          : await delegateAleoTransaction(executionParams);
+
+        const transactionId = extractTransactionId(leoResult as LeoExecutionResult);
+        if (transactionId) {
+          log(`${requestString} Transaction ID: ${transactionId}`);
+
+          // Send success notification with transaction details
+          await discordNotifier.sendTransactionAlert(tokens.join(','), transactionId, 'confirmed', {
+            enclaveUrl: result.enclaveUrl,
+            price: attestationData,
+            requestHash,
+            timestamp,
+          });
+
+          success = true;
+
+          response = { tokens, txnId: transactionId, errorMsg: null };
+        } else {
+          errorMsg = `Transaction ID not found in leo output for ${tokens.join(',')} with error ${leoResult?.errorOutput}`;
+          throw new Error(errorMsg);
+        }
+
+      } catch (error) {
+        if (!errorMsg) {
+          errorMsg = (error as Error).message;
+        }
+        success = false;
+        logError(`${requestString} ${errorMsg}`);
+        throw error;
       }
 
       return response as SgxDataResult;
@@ -463,26 +630,73 @@ export class OracleService implements OracleServiceInterface {
       // await discordNotifier.sendPriceUpdateAlert(coinName, 'failed', null, error as Error);
       await discordNotifier.sendErrorAlert(error as Error, {
         operation: 'setSgxData',
-        coinName,
+        tokens: tokens.join(','),
       });
 
       const err = new Error('Error setting the sgx data');
-      (err as any).data = { coinName, txnId: null, errorMsg: (error as Error)?.message };
+      (err as any).data = { tokens: tokens.join(','), txnId: null, errorMsg: (error as Error)?.message };
       throw err;
     }
   }
 
   /**
-   * Handle the price update cron
+   * Get the last tracked price for a coin
+   * @param coinName - The name of the coin
+   * @returns The last price and timestamp, or null if not found
+   */
+  getLastTrackedPrice(coinName: string): { price: number; timestamp: number } | null {
+    try {
+      const filePath = `./prices/${coinName.toLowerCase()}_price.txt`;
+      if (!existsSync(filePath)) {
+        logDebug(`Price file not found for ${coinName}: ${filePath} `);
+        return null;
+      }
+
+      const fileContent = readFileSync(filePath, 'utf-8');
+      const lines = fileContent.trim().split('\n').filter((line) => line.trim());
+
+      if (lines.length === 0) {
+        logDebug(`No price data found for ${coinName}`);
+        return null;
+      }
+
+      // Get the last line (most recent price)
+      const lastLine = lines[lines.length - 1]!.trim();
+      const [timestampStr, priceStr] = lastLine.split(' ');
+
+      if (!timestampStr || !priceStr) {
+        logWarn(`Invalid price data format for ${coinName}: ${lastLine} `);
+        return null;
+      }
+
+      const timestamp = parseInt(timestampStr, 10);
+      const price = parseFloat(priceStr);
+
+      if (isNaN(timestamp) || isNaN(price)) {
+        logWarn(`Invalid price data values for ${coinName}: timestamp = ${timestampStr}, price = ${priceStr} `);
+        return null;
+      }
+
+      return { price, timestamp };
+    } catch (error) {
+      logError(`Error reading last tracked price for ${coinName}`, error as Error);
+      return null;
+    }
+  }
+
+  /**
+   * Handle the deviation based price update cron
+   * Checks if current price deviates from last tracked price by threshold
    * @param coinName - The name of the coin
    * @returns The void
    */
-  async handlePriceUpdateCron(coinName: string): Promise<SgxDataResult | null> {
-
+  async handleDeviationBasedPriceUpdateCron(coinName: string): Promise<SgxDataResult | null> {
+    const tokens = coinName === 'ALL' ? VERULEND_SUPPORTED_COINS : [coinName];
+    const requestString = `[handleDeviationBasedPriceUpdateCron:${tokens.join(',')}]`;
     try {
-
-      if (!this.stats[coinName]) {
-        this.stats[coinName] = {
+      const requestString = `[handleDeviationBasedPriceUpdateCron:${coinName}]`;
+      if (!this.deviationPriceUpdateStats[coinName]) {
+        this.deviationPriceUpdateStats[coinName] = {
           totalRuns: 0,
           successfulRuns: 0,
           failedRuns: 0,
@@ -490,57 +704,158 @@ export class OracleService implements OracleServiceInterface {
           lastSuccess: null,
           lastError: null,
           cronEnabled: true,
-          cronSchedule: cronConfig.tokens[coinName]?.schedule || '',
+          cronSchedule: deviationBasedPriceUpdateCronConfig.tokens[coinName]?.schedule || '',
         };
       }
 
-      this.stats[coinName].totalRuns++;
-      this.stats[coinName].lastRun = new Date();
+      const stats = this.deviationPriceUpdateStats[coinName];
+
+      stats.totalRuns++;
+      stats.lastRun = new Date();
 
       const startTime = Date.now();
       logDebug(
-        `Starting price update cycle ${this.stats[coinName].totalRuns} for coins: ${coinName}`
+        `${requestString} Starting deviation check cycle ${stats.totalRuns} for ${tokens.join(',')}`
       );
 
-      // Send started notification
-      await discordNotifier.sendCronJobAlert(`${coinName} price_update`, 'started', null, null);
+      // Get the last tracked price
+      const lastPriceData = this.getLastTrackedPrice(coinName);
+
+      if (!lastPriceData) {
+        logDebug(`${requestString} No previous price found, updating price directly`);
+        // If no previous price, update directly
+        const result = await this.setSgxData({ tokens, checkDeviation: true });
+        stats.successfulRuns++;
+        stats.lastSuccess = new Date();
+        return result;
+      }
 
       let successCount = 0;
       let errorCount = 0;
 
       let response: SgxDataResult | null = null;
 
-      const coinStartTime = Date.now();
+      const tokensStartTime = Date.now();
       try {
-        log(`Updating ${coinName} price...`);
+        log(`${requestString} Updating ${coinName} price...`);
 
-        response = await this.setSgxData(coinName);
+        response = await this.setSgxData({ tokens: [coinName], checkDeviation: true });
 
-        const coinDuration = Date.now() - coinStartTime;
-        log(`Successfully updated ${coinName} price in ${coinDuration}ms`);
+        const tokensDuration = Date.now() - tokensStartTime;
+
+        log(`${requestString} Successfully updated ${tokens.join(',')} price in ${tokensDuration} ms`);
+
         successCount++;
       } catch (err) {
-        const coinDuration = Date.now() - coinStartTime;
-        logError(`Failed to update ${coinName} price after ${coinDuration}ms`, err as Error);
+        const tokensDuration = Date.now() - tokensStartTime;
+        logError(`${requestString} Failed to update ${tokens.join(',')} price after ${tokensDuration} ms`, err as Error);
         errorCount++;
         response = (err as any)?.data as SgxDataResult;
       }
       const duration = Date.now() - startTime;
 
       if (errorCount === 0) {
-        this.stats[coinName].successfulRuns++;
-        this.stats[coinName].lastSuccess = new Date();
+        stats.successfulRuns++;
+        stats.lastSuccess = new Date();
         logDebug(
-          `Price update cycle ${this.stats[coinName].totalRuns} completed successfully in ${duration}ms`
+          `${requestString} Price update cycle ${stats.totalRuns} completed successfully in ${duration} ms`
+        );
+
+        // Send success notification
+        // await discordNotifier.sendCronJobAlert(`${ coinName } price_update`, 'success', null, duration);
+      } else {
+        stats.failedRuns++;
+        stats.lastError = new Date();
+        logWarn(
+          `${requestString} Price update cycle ${stats.totalRuns} completed with ${errorCount} errors in ${duration} ms`
+        );
+      }
+      return response;
+    } catch (error) {
+      logError(`${requestString} Failed to handle deviation price update cron`, error as Error);
+      await discordNotifier.sendErrorAlert(error as Error, {
+        operation: 'handleDeviationBasedPriceUpdateCron',
+        coinName,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Handle periodic price update cron
+   * @param coinName - The name of the coin
+   * @returns The SgxDataResult
+   */
+  async handlePeriodicPriceUpdateCron(coinName: string): Promise<SgxDataResult | null> {
+    const tokens = coinName === 'ALL' ? VERULEND_SUPPORTED_COINS : [coinName];
+    const requestString = `[handlePeriodicPriceUpdateCron]:${coinName}]`;
+    try {
+
+      if (!this.periodicPriceUpdateStats[coinName]) {
+        this.periodicPriceUpdateStats[coinName] = {
+          totalRuns: 0,
+          successfulRuns: 0,
+          failedRuns: 0,
+          lastRun: null,
+          lastSuccess: null,
+          lastError: null,
+          cronEnabled: true,
+          cronSchedule: periodicPriceUpdateCronConfig.tokens[coinName]?.schedule || '',
+        };
+      }
+
+      const stats = this.periodicPriceUpdateStats[coinName];
+
+      stats.totalRuns++;
+      stats.lastRun = new Date();
+
+      const startTime = Date.now();
+      logDebug(
+        `${requestString} Starting price update cycle ${stats.totalRuns} for coins: ${tokens.join(',')}`
+      );
+
+      // Send started notification
+      await discordNotifier.sendCronJobAlert(`${tokens.join(',')} price_update`, 'started', null, null);
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      let response: SgxDataResult | null = null;
+
+
+      const tokensStartTime = Date.now();
+      try {
+        log(`${requestString} Updating ${tokens.join(',')} price...`);
+
+        response = await this.setSgxData({ tokens, checkDeviation: false });
+
+        const tokensDuration = Date.now() - tokensStartTime;
+
+        log(`${requestString} Successfully updated ${tokens.join(',')} price in ${tokensDuration} ms`);
+
+        successCount++;
+      } catch (err) {
+        const tokensDuration = Date.now() - tokensStartTime;
+        logError(`${requestString} Failed to update ${tokens.join(',')} price after ${tokensDuration} ms`, err as Error);
+        errorCount++;
+        response = (err as any)?.data as SgxDataResult;
+      }
+      const duration = Date.now() - startTime;
+
+      if (errorCount === 0) {
+        stats.successfulRuns++;
+        stats.lastSuccess = new Date();
+        logDebug(
+          `${requestString} Price update cycle ${stats.totalRuns} completed successfully in ${duration} ms`
         );
 
         // Send success notification
         // await discordNotifier.sendCronJobAlert(`${coinName} price_update`, 'success', null, duration);
       } else {
-        this.stats[coinName].failedRuns++;
-        this.stats[coinName].lastError = new Date();
+        stats.failedRuns++;
+        stats.lastError = new Date();
         logWarn(
-          `Price update cycle ${this.stats[coinName].totalRuns} completed with ${errorCount} errors in ${duration}ms`
+          `${requestString} Price update cycle ${stats.totalRuns} completed with ${errorCount} errors in ${duration} ms`
         );
         // Send failure notification
         // await discordNotifier.sendCronJobAlert(
@@ -553,98 +868,227 @@ export class OracleService implements OracleServiceInterface {
 
       return response;
     } catch (error) {
-      logError(`Failed to handle price update cron for ${coinName}`, error as Error);
+      logError(`${requestString} Failed to handle periodic price update cron for ${coinName}`, error as Error);
       await discordNotifier.sendErrorAlert(error as Error, {
-        operation: 'handlePriceUpdateCron',
-        coinName,
+        operation: 'handlePeriodicPriceUpdateCron',
+        tokens: tokens.join(','),
       });
       throw error;
     }
   }
 
+
   /**
-   * Start the cron job
+   * Start the deviation-based price update cron
+   * Updates price only when deviation from last tracked price exceeds threshold
    * @param coinName - The name of the coin
    * @returns The void
    */
-  startCronJob(coinName?: string | null): void {
+  startDeviationBasedPriceUpdateCron(coinName?: string | null): void {
+    const requestString = `[startDeviationBasedPriceUpdateCron]`;
     const coins = coinName ? [coinName] : COIN_LIST;
     for (const coin of coins) {
-      if (this.cronJob[coin]) {
-        log(`Cron job for ${coin} already running`);
+      const tokens = coin === 'ALL' ? VERULEND_SUPPORTED_COINS : [coin];
+      if (this.deviationPriceUpdateCronJob[coin]) {
+        log(`${requestString} Deviation cron job for ${tokens.join(',')} already running`);
         continue;
       }
 
-      if (cronConfig.tokens[coin]?.enabled) {
+      const tokenConfig = deviationBasedPriceUpdateCronConfig.tokens[coin];
+
+      const cronEnabled = tokenConfig?.enabled;
+      const cronSchedule = tokenConfig?.schedule;
+
+      if (tokenConfig?.enabled) {
         log(
-          `Starting cron job for ${coin} with schedule ${JSON.stringify(cronConfig.tokens[coin].schedule)}`
+          `${requestString} Starting deviation cron job for ${tokens.join(',')} with schedule ${SuperJSON.stringify(cronSchedule)} `
         );
 
-        const cronSchedule = cronConfig.tokens[coin].schedule;
-        if (!validateCronExpression(cronSchedule)) {
-          log(`Invalid cron schedule for ${coin}: ${cronSchedule}`);
+        if (!validateCronExpression(cronSchedule! as string)) {
+          log(`${requestString} Invalid cron schedule for ${tokens.join(',')}: ${cronSchedule} `);
           continue;
         }
 
-        this.stats[coin] = {
-          totalRuns: 0,
-          successfulRuns: 0,
-          failedRuns: 0,
-          lastRun: null,
-          lastSuccess: null,
-          lastError: null,
-          cronEnabled: true,
-          cronSchedule: cronConfig.tokens[coin].schedule,
-        };
+        if (!this.deviationPriceUpdateStats[coin]) {
+          this.deviationPriceUpdateStats[coin] = {
+            totalRuns: 0,
+            successfulRuns: 0,
+            failedRuns: 0,
+            lastRun: null,
+            lastSuccess: null,
+            lastError: null,
+            cronEnabled: cronEnabled as boolean,
+            cronSchedule: cronSchedule! as string,
+          };
+        }
 
-        this.cronJob[coin] = CronJob.from({
-          name: `FetchCoinPrice-${coin}`,
-          cronTime: cronConfig.tokens[coin].schedule,
+        this.deviationPriceUpdateCronJob[coin] = CronJob.from({
+          name: `Deviation Based Price Update CronJob - ${tokens.join(',')} `,
+          cronTime: cronSchedule! as string,
           onTick: async () => {
-            await this.handlePriceUpdateCron(coin);
+            await this.handleDeviationBasedPriceUpdateCron(coin);
           },
           errorHandler: async (error: unknown) => {
             logError('[CronError]', error as Error);
-            if (this.stats[coin]) {
-              this.stats[coin].lastError = new Date();
+            if (this.deviationPriceUpdateStats[coin]) {
+              this.deviationPriceUpdateStats[coin]!.lastError = new Date();
             }
             // Send Discord notification for cron error
-            await discordNotifier.sendCronJobAlert('price_update', 'failed', error as Error);
+            await discordNotifier.sendCronJobAlert(`${coin} deviation_price_update`, 'failed', error as Error);
           },
         });
 
-        this.cronJob[coin]!.start();
+        this.deviationPriceUpdateCronJob[coin]!.start();
 
         log(
-          `Cron job for ${coin} started - fetching coin prices every ${cronConfig.tokens[coin].schedule}`
+          `${requestString} Deviation cron job for ${coin} started - checking price deviation every ${cronSchedule} `
         );
       }
     }
   }
 
   /**
-   * Stop the cron job
+   * Start the periodic price update cron
+   * Updates price periodically on a fixed schedule regardless of deviation
    * @param coinName - The name of the coin
    * @returns The void
    */
-  stopCronJob(coinName?: string | null): void {
+  startPeriodicPriceUpdateCron(coinName?: string | null): void {
+    const requestString = `[startPeriodicPriceUpdateCron]`;
     const coins = coinName ? [coinName] : COIN_LIST;
     for (const coin of coins) {
-      if (this.cronJob[coin]) {
+
+      const tokens = coin === 'ALL' ? VERULEND_SUPPORTED_COINS : [coin];
+      if (this.periodicPriceUpdateCronJob[coin]) {
+        log(`${requestString} Periodic cron job for ${tokens.join(',')} coin already running`);
+        continue;
+      }
+
+      const cronEnabled = periodicPriceUpdateCronConfig.tokens[coin]?.enabled;
+      const cronSchedule = periodicPriceUpdateCronConfig.tokens[coin]?.schedule;
+
+      if (cronEnabled) {
+        if (!validateCronExpression(cronSchedule! as string)) {
+          log(`${requestString} Invalid cron schedule for ${tokens.join(',')}: ${cronSchedule} `);
+          continue;
+        }
+        log(
+          `${requestString} Starting periodic cron job for ${tokens.join(',')} with schedule ${SuperJSON.stringify(cronSchedule)}`
+        );
+      }
+
+      this.periodicPriceUpdateStats[coin] = {
+        totalRuns: 0,
+        successfulRuns: 0,
+        failedRuns: 0,
+        lastRun: null,
+        lastSuccess: null,
+        lastError: null,
+        cronEnabled: cronEnabled as boolean,
+        cronSchedule: cronSchedule! as string,
+      };
+
+      if (cronEnabled) {
+        this.periodicPriceUpdateCronJob[coin] = CronJob.from({
+          name: `Periodic Price Update CronJob - ${tokens.join(',')}`,
+          cronTime: cronSchedule! as string,
+          onTick: async () => {
+            await this.handlePeriodicPriceUpdateCron(coin as string);
+          },
+          errorHandler: async (error: unknown) => {
+            logError('[CronError]', error as Error);
+            if (this.periodicPriceUpdateStats[coin]) {
+              this.periodicPriceUpdateStats[coin]!.lastError = new Date();
+            }
+            // Send Discord notification for cron error
+            await discordNotifier.sendCronJobAlert(`${tokens.join(',')} price_update`, 'failed', error as Error);
+          },
+        });
+
+        this.periodicPriceUpdateCronJob[coin]!.start();
+
+        log(
+          `${requestString} Periodic cron job for ${coin} started - fetching coin prices every ${cronSchedule}`
+        );
+      }
+    }
+  }
+
+  /**
+   * Start both cron jobs (periodic and deviation-based)
+   * @param coinName - The name of the coin
+   * @returns The void
+   */
+  startCronJob(coinName: string = 'ALL'): void {
+    this.startPeriodicPriceUpdateCron(coinName);
+    // this.startDeviationBasedPriceUpdateCron(coinName);
+  }
+
+  /**
+   * Stop both cron jobs (periodic and deviation-based)
+   * @param coinName - The name of the coin
+   * @returns The void
+   */
+  stopCronJob(coinName: string = 'ALL'): void {
+    this.stopPeriodicPriceUpdateCron(coinName);
+    this.stopDeviationBasedPriceUpdateCron(coinName);
+  }
+
+  /**
+   * Stop the periodic price update cron
+   * @param coinName - The name of the coin
+   * @returns The void
+   */
+  stopPeriodicPriceUpdateCron(coinName?: string | null): void {
+    const requestString = `[stopPeriodicPriceUpdateCron]`;
+    const coins = coinName ? [coinName] : COIN_LIST;
+    for (const coin of coins) {
+      if (this.periodicPriceUpdateCronJob[coin]) {
         try {
-          log(`🛑 Stopping cron job for ${coin}`);
-          this.cronJob[coin]!.stop();
-          this.cronJob[coin] = null;
-          this.stats[coin] = null;
-          log(`Cron job for ${coin} stopped`);
+          log(`🛑 Stopping periodic price update cron job for ${coin}`);
+          this.periodicPriceUpdateCronJob[coin]!.stop();
+          this.periodicPriceUpdateCronJob[coin] = null;
+          this.periodicPriceUpdateStats[coin] = null;
+          log(`${requestString} Periodic Price Update cron job for ${coin} stopped`);
           // Send Discord notification for cron job stop
-          discordNotifier.sendServiceStatusAlert('Cron Job', 'offline', {
+          discordNotifier.sendServiceStatusAlert('Periodic Price Update Cron Job', 'stopped', {
             coinName: coin,
           });
         } catch (error) {
-          logError(`Error stopping cron job for ${coin}`, error as Error);
+          logError(`${requestString} Error stopping periodic price update cron job for ${coin}`, error as Error);
           discordNotifier.sendErrorAlert(error as Error, {
-            operation: 'stopCronJob',
+            operation: 'stopPeriodicPriceUpdateCron',
+            coinName: coin,
+          });
+        }
+      }
+    }
+  }
+
+  /**
+   * Stop the deviation-based price update cron
+   * @param coinName - The name of the coin
+   * @returns The void
+   */
+  stopDeviationBasedPriceUpdateCron(coinName?: string | null): void {
+    const requestString = `[stopDeviationBasedPriceUpdateCron]`;
+    const coins = coinName ? [coinName] : COIN_LIST;
+    for (const coin of coins) {
+      if (this.deviationPriceUpdateCronJob[coin]) {
+        try {
+          log(`🛑 Stopping deviation cron job for ${coin}`);
+          this.deviationPriceUpdateCronJob[coin]!.stop();
+          this.deviationPriceUpdateCronJob[coin] = null;
+          this.deviationPriceUpdateStats[coin] = null;
+          log(`${requestString} Deviation cron job for ${coin} stopped`);
+          // Send Discord notification for cron job stop
+          discordNotifier.sendServiceStatusAlert('Deviation Based Price Update Cron Job', 'stopped', {
+            coinName: coin,
+          });
+        } catch (error) {
+          logError(`Error stopping deviation cron job for ${coin}`, error as Error);
+          discordNotifier.sendErrorAlert(error as Error, {
+            operation: 'stopDeviationBasedPriceUpdateCron',
             coinName: coin,
           });
         }
@@ -657,13 +1101,16 @@ export class OracleService implements OracleServiceInterface {
    * @param coinName - The name of the coin
    * @returns The cron job status
    */
-  getCronJobStatus(coinName?: string | null): Record<string, CoinStats | null> {
+  getCronJobStats(coinName?: string | null): Record<string, Record<string, CoinStats | null>> {
     const coins = coinName ? [coinName] : COIN_LIST;
-    const status: Record<string, CoinStats | null> = {};
+    const stats: Record<string, Record<string, CoinStats | null>> = {};
     for (const coin of coins) {
-      status[coin] = this.stats[coin] || null;
+      stats[coin] = {
+        periodic: this.periodicPriceUpdateStats[coin] || null,
+        deviation: this.deviationPriceUpdateStats[coin] || null,
+      };
     }
-    return status;
+    return stats as Record<string, Record<string, CoinStats | null>>;
   }
 
   /**
@@ -674,7 +1121,10 @@ export class OracleService implements OracleServiceInterface {
     return {
       uptime: process.uptime(),
       memory: process.memoryUsage(),
-      cronJob: this.stats,
+      cronJobs: {
+        periodic: this.periodicPriceUpdateStats,
+        deviation: this.deviationPriceUpdateStats,
+      },
     };
   }
 }

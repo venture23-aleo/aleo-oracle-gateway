@@ -6,3 +6,5 @@ prices/
 dist/
 
 certs/
+mtls/
+scripts/

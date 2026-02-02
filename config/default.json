@@ -12,9 +12,18 @@
     "enableResourceProfiling": false,
     "resourceProfilingInterval": 5000,
     "network": "testnet",
-    "endpoint": "https://api.explorer.provable.com/v1"
+    "endpoint": "https://api.explorer.provable.com/v2"
   },
   "oracle": {
+    "provableDelegatedProving": {
+      "enabled": true,
+      "aleoApiHost": "https://api.explorer.provable.com/v2",
+      "proverUrl": "",
+      "baseFeeCredits": 0,
+      "priorityFeeCredits": 0,
+      "privateFee": false,
+      "broadcast": true
+    },
     "verifyAttestation": true,
     "attestationRequest": {
       "url": "price_feed: {{COIN_NAME}}",
@@ -55,22 +64,28 @@
       }
     ],
     "aleoProgram": {
-      "name": "vlink_oracle_v2.aleo",
+      "name": "veru_oracle_interface_v5.aleo",
       "function": {
         "setUniqueId": "set_unique_id",
-        "setSgxData": "set_data_sgx",
+        "setSingleSgxData": "set_single_data_sgx",
+        "setMultipleSgxData": "set_five_data_sgx",
         "setPublicKey": "set_key"
       }
     },
-    "supportedCoins": [
-      "BTC",
-      "ETH",
+    "verulendSupportedCoins": [
       "ALEO",
       "USDC",
       "USDT"
+    ],
+    "supportedCoins": [
+      "ALEO",
+      "USDC",
+      "USDT",
+      "BTC",
+      "ETH"
     ]
   },
-  "cron": {
+  "periodicPriceUpdateCron": {
     "tokens": {
       "BTC": {
         "schedule": "0 0 */2 * * *",
@@ -90,6 +105,44 @@
       },
       "USDT": {
         "schedule": "0 */5 * * * *",
+        "enabled": false
+      },
+      "ALL": {
+        "schedule": "0 */5 * * * *",
+        "enabled": false
+      }
+    }
+  },
+  "deviationBasedPriceUpdateCron": {
+    "tokens": {
+      "BTC": {
+        "deviation": 2,
+        "schedule": "0 0 */2 * * *",
+        "enabled": false
+      },
+      "ETH": {
+        "deviation": 2,
+        "schedule": "0 0 */2 * * *",
+        "enabled": false
+      },
+      "ALEO": {
+        "deviation": 3,
+        "schedule": "0 */5 * * * *",
+        "enabled": false
+      },
+      "USDC": {
+        "deviation": 0.5,
+        "schedule": "0 */5 * * * *",
+        "enabled": false
+      },
+      "USDT": {
+        "deviation": 0.5,
+        "schedule": "0 */5 * * * *",
+        "enabled": false
+      },
+      "ALL": {
+        "deviation": 0.5,
+        "schedule": "0 0 */1 * * *",
         "enabled": false
       }
     }
