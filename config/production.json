@@ -7,7 +7,7 @@
   },
   "oracle": {
     "aleoProgram": {
-      "name": "veru_oracle_interface_v5.aleo"
+      "name": "veru_oracle_interface_v3.aleo"
     }
   }
 }
