@@ -103,6 +103,12 @@ export const configSchema = z.object({
         setPublicKey: z.string(),
       }),
     }),
+    verulendSupportedCoins: z.preprocess((val: unknown) => {
+      if (typeof val === 'string') {
+        return val.split(',').map((coin: string) => coin.trim().toUpperCase());
+      }
+      return val;
+    }, z.array(z.string())),
     supportedCoins: z.preprocess((val: unknown) => {
       if (typeof val === 'string') {
         return val.split(',').map((coin: string) => coin.trim().toUpperCase());

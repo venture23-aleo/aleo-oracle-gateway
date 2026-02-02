@@ -64,6 +64,7 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
       initialized: oracleService.isInitialized,
       cronJobs: oracleService.getCronJobStats(),
       supportedCoins: oracleConfig.supportedCoins,
+      verulendSupportedCoins: oracleConfig.verulendSupportedCoins,
     });
   });
 
@@ -163,7 +164,7 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
           });
         }
 
-        if (!COIN_LIST.includes(coinName.toUpperCase())) {
+        if (!COIN_LIST.includes(coinName.toUpperCase()) && coinName !== 'ALL') {
           return res.status(400).json({
             success: false,
             error: 'Unsupported coin',
@@ -266,7 +267,7 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
     async (req: Request, res: Response): Promise<void | Response<any, Record<string, any>>> => {
       try {
         const { coinName } = req.body as { coinName?: string };
-        if (coinName && !COIN_LIST.includes(coinName.toUpperCase())) {
+        if (coinName && !COIN_LIST.includes(coinName.toUpperCase()) && coinName !== 'ALL') {
           return res.status(400).json({
             success: false,
             error: 'Unsupported coin',
@@ -299,7 +300,7 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
     async (req: Request, res: Response): Promise<void | Response<any, Record<string, any>>> => {
       try {
         const { coinName } = req.body as { coinName?: string };
-        if (coinName && !COIN_LIST.includes(coinName.toUpperCase())) {
+        if (coinName && !COIN_LIST.includes(coinName.toUpperCase()) && coinName !== 'ALL') {
           return res.status(400).json({
             success: false,
             error: 'Unsupported coin',
@@ -332,7 +333,7 @@ export const oracleRoutes = (oracleService: OracleServiceInterface): Router => {
     async (req: Request, res: Response): Promise<void | Response<any, Record<string, any>>> => {
       try {
         const { coinName } = req.params;
-        if (coinName && !COIN_LIST.includes(coinName.toUpperCase())) {
+        if (coinName && !COIN_LIST.includes(coinName.toUpperCase()) && coinName != 'ALL') {
           return res.status(400).json({
             success: false,
             error: 'Unsupported coin',

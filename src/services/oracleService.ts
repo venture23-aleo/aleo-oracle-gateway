@@ -30,6 +30,7 @@ import SuperJSON from 'superjson';
 const {
   notarizers,
   verifier,
+  verulendSupportedCoins: VERULEND_SUPPORTED_COINS,
   supportedCoins: COIN_LIST,
   aleoProgram: {
     function: {
@@ -690,7 +691,7 @@ export class OracleService implements OracleServiceInterface {
    * @returns The void
    */
   async handleDeviationBasedPriceUpdateCron(coinName: string): Promise<SgxDataResult | null> {
-    const tokens = coinName === 'ALL' ? COIN_LIST : [coinName];
+    const tokens = coinName === 'ALL' ? VERULEND_SUPPORTED_COINS : [coinName];
     const requestString = `[handleDeviationBasedPriceUpdateCron:${tokens.join(',')}]`;
     try {
       const requestString = `[handleDeviationBasedPriceUpdateCron:${coinName}]`;
@@ -786,7 +787,7 @@ export class OracleService implements OracleServiceInterface {
    * @returns The SgxDataResult
    */
   async handlePeriodicPriceUpdateCron(coinName: string): Promise<SgxDataResult | null> {
-    const tokens = coinName === 'ALL' ? COIN_LIST : [coinName];
+    const tokens = coinName === 'ALL' ? VERULEND_SUPPORTED_COINS : [coinName];
     const requestString = `[handlePeriodicPriceUpdateCron]:${coinName}]`;
     try {
 
@@ -887,7 +888,7 @@ export class OracleService implements OracleServiceInterface {
     const requestString = `[startDeviationBasedPriceUpdateCron]`;
     const coins = coinName ? [coinName] : COIN_LIST;
     for (const coin of coins) {
-      const tokens = coin === 'ALL' ? COIN_LIST : [coin];
+      const tokens = coin === 'ALL' ? VERULEND_SUPPORTED_COINS : [coin];
       if (this.deviationPriceUpdateCronJob[coin]) {
         log(`${requestString} Deviation cron job for ${tokens.join(',')} already running`);
         continue;
@@ -957,7 +958,7 @@ export class OracleService implements OracleServiceInterface {
     const coins = coinName ? [coinName] : COIN_LIST;
     for (const coin of coins) {
 
-      const tokens = coin === 'ALL' ? COIN_LIST : [coin];
+      const tokens = coin === 'ALL' ? VERULEND_SUPPORTED_COINS : [coin];
       if (this.periodicPriceUpdateCronJob[coin]) {
         log(`${requestString} Periodic cron job for ${tokens.join(',')} coin already running`);
         continue;

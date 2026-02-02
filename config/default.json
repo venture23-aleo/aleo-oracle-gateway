@@ -72,6 +72,11 @@
         "setPublicKey": "set_key"
       }
     },
+    "verulendSupportedCoins": [
+      "ALEO",
+      "USDC",
+      "USDT"
+    ],
     "supportedCoins": [
       "ALEO",
       "USDC",
