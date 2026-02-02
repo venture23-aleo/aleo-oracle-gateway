@@ -109,7 +109,7 @@
       },
       "ALL": {
         "schedule": "0 */5 * * * *",
-        "enabled": false
+        "enabled": true
       }
     }
   },
