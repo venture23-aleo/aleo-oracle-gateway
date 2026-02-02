@@ -69,7 +69,9 @@
     "supportedCoins": [
       "ALEO",
       "USDC",
-      "USDT"
+      "USDT",
+      "BTC",
+      "ETH"
     ]
   },
   "periodicPriceUpdateCron": {
