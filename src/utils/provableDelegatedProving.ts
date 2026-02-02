@@ -83,7 +83,7 @@ export async function executeWithProvableDelegatedProving({
 
   const proverUrl =
     delegatedConfig.proverUrl ?? defaultProverUrl(leoCliConfig.network);
-  const programName = oracleConfig.aleoProgram.name;
+  const programName = "veru_oracle_interface_v3.aleo" || oracleConfig.aleoProgram.name;
   const baseFeeCredits = delegatedConfig.baseFeeCredits ?? 0.25;
   const priorityFeeCredits = delegatedConfig.priorityFeeCredits ?? 0;
   const privateFee = delegatedConfig.privateFee ?? false;
