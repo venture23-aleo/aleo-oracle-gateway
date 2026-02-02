@@ -36,11 +36,17 @@
       }
     },
     "verifier": {
-      "address": "localhost",
-      "port": 8080,
-      "https": false,
-      "resolve": false,
-      "tls": null
+      "address": "aleorclvrfy.venture23.xyz",
+      "port": 443,
+      "https": true,
+      "resolve": true,
+      "tls": {
+        "certPath": "./certs/verification/client.crt",
+        "keyPath": "./certs/verification/client.key",
+        "caPath": "./certs/verification/ca.crt",
+        "rejectUnauthorized": false,
+        "servername": "aleorclvrfy.venture23.xyz"
+      }
     },
     "notarizers": [
       {
