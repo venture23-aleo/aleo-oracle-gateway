@@ -35,7 +35,7 @@
   "license": "GPL-3.0",
   "type": "module",
   "dependencies": {
-    "@provablehq/sdk": "^0.9.15",
+    "@provablehq/sdk": "0.9.15-enc",
     "@venture23-aleo/aleo-oracle-sdk": "^1.2.0",
     "axios": "^1.10.0",
     "child_process": "^1.0.2",
@@ -47,7 +47,7 @@
     "helmet": "^7.2.0",
     "morgan": "^1.10.0",
     "p-queue": "^8.1.0",
-    "p-retry": "^6.2.1",
+    "p-retry": "^7.1.1",
     "pidusage": "^4.0.1",
     "superjson": "^2.2.6",
     "winston": "^3.17.0",
