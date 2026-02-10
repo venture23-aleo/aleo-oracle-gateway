@@ -457,7 +457,7 @@ export class OracleService implements OracleServiceInterface {
           })
 
           const notarizeResult = await oracleClient.notarize(attestationRequest as unknown as AttestationRequest, {
-            timeout: 10000,
+            timeout: 20000,
             dataShouldMatch: false,
           });
           // logDebug(`[setSgxData] Attestation result: ${SuperJSON.stringify(notarizeResult)}`);
@@ -499,7 +499,7 @@ export class OracleService implements OracleServiceInterface {
   async prepareAttestationReportForVerulend(): Promise<VerulendAttestationReport> {
     const requestString = `[prepareAttestationReportForVerulend]`;
     try {
-      const tokens = ['ALEO', 'USDC', 'USDT'] as string[];
+      const tokens = oracleConfig.verulendSupportedCoins as string[];
       const result = await retry({ func: () => this.getAttestationReport(tokens), label: `[prepareAttestationReportForVerulend:${tokens}]`, retries: 3 });
       if (!result) {
         throw new Error(`No attestation report received for ${tokens}`);

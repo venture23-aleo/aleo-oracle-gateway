@@ -1,12 +1,15 @@
-import pRetry, { type FailedAttemptError } from 'p-retry';
+import pRetry, { makeRetriable, type RetryContext } from 'p-retry';
 import { logWarn } from '@utils/logger.js';
+import { BroadcastError } from '@utils/provableDelegatedProving.js';
 
 interface RetryOptions {
   func: () => Promise<any>;
   label: string;
   retries?: number;
-  onFailedAttempt?: null | ((error: FailedAttemptError) => void);
+  onFailedAttempt?: null | ((error: any) => void);
 }
+
+const delayInSeconds = (seconds: number) => new Promise(resolve => setTimeout(resolve, seconds * 1000));
 
 /**
  * Retry a function with exponential backoff
@@ -24,10 +27,25 @@ export const retry = ({
 }: RetryOptions): Promise<any> => {
   return pRetry(func, {
     retries,
-    onFailedAttempt:
-      onFailedAttempt ||
-      ((error: FailedAttemptError) => {
-        logWarn(`Retry ${error.attemptNumber} for ${label}: ${error.message}`);
-      }),
+    shouldRetry: (context: RetryContext) => {
+      const { error, retriesLeft } = context;
+      return !(error instanceof BroadcastError) && retriesLeft > 0;
+    },
+    onFailedAttempt: async (context: RetryContext) => {
+      const { error, attemptNumber } = context;
+      onFailedAttempt ? onFailedAttempt(error) : logWarn(`Retry ${attemptNumber} for ${label}: ${error.message}`);
+      // Use exponential backoff delay: delay = 2 ** attemptNumber seconds
+      await delayInSeconds(Math.pow(2, attemptNumber));
+    },
   });
 };
+
+export const fetchWithRetry = makeRetriable(fetch, {
+  retries: 3,
+  onFailedAttempt: async (context: RetryContext) => {
+    const { error, attemptNumber, retriesLeft, retriesConsumed } = context;
+    logWarn(`Retry ${attemptNumber} for fetch: ${error.message} with ${retriesLeft} retries left and ${retriesConsumed} retries consumed`);
+    // Use exponential backoff delay: delay = 2 ** attemptNumber seconds
+    await delayInSeconds(Math.pow(2, attemptNumber));
+  },
+});
