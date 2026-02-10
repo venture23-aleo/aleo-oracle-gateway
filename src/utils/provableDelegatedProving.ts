@@ -92,6 +92,10 @@ type ProverPubKey = {
   public_key: string;
 };
 
+type ProverPubKeyResponse = ProverPubKey & {
+  cookie?: string | null;
+};
+
 type GetProverPubKeyParams = {
   proverBase: string;
   jwt: string;
@@ -103,6 +107,7 @@ type SendEncryptedProvingRequestParams = {
   jwt: string;
   payload: { key_id: string; ciphertext: string };
   label: string;
+  cookie?: string | null;
 };
 
 type BroadcastProvableResponse = {
@@ -115,7 +120,7 @@ type BroadcastProvableResponse = {
 
 
 
-async function getProverPubKey({ proverBase, jwt, label }: GetProverPubKeyParams): Promise<ProverPubKey> {
+async function getProverPubKey({ proverBase, jwt, label }: GetProverPubKeyParams): Promise<ProverPubKeyResponse> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Authorization: jwt,
@@ -124,6 +129,7 @@ async function getProverPubKey({ proverBase, jwt, label }: GetProverPubKeyParams
   const res = await fetchWithRetry(`${proverBase}/pubkey`, {
     method: 'GET',
     headers,
+    credentials: 'include',
   });
 
   if (!res.ok) {
@@ -133,20 +139,27 @@ async function getProverPubKey({ proverBase, jwt, label }: GetProverPubKeyParams
     );
   }
 
-  return (await res.json()) as ProverPubKey;
+  const pubKey = await res.json() as ProverPubKey;
+  const cookie = res.headers.get('set-cookie') ?? null;
+
+  return { ...pubKey, cookie };
 }
 
-async function sendEncryptedProvingRequest({ proverBase, jwt, payload, label }: SendEncryptedProvingRequestParams): Promise<unknown> {
+async function sendEncryptedProvingRequest({ proverBase, jwt, cookie, payload, label }: SendEncryptedProvingRequestParams): Promise<unknown> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Authorization: jwt,
   };
 
-  const res = await fetchWithRetry(`${proverBase}/prove/encrypted`, {
+  const fetchOptions: RequestInit = {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
-  });
+    credentials: 'include',
+    ...(cookie ? { Cookie: cookie } : {}),
+  };
+
+  const res = await fetchWithRetry(`${proverBase}/prove/encrypted`, fetchOptions);
 
   const text = await res.text();
   let body: unknown = null;
@@ -262,21 +275,21 @@ export async function executeWithProvableDelegatedProving({
 
   const func = async () => {
     try {
-      const pubkey = await getProverPubKey({ proverBase, jwt, label });
+      const pubKeyResponse = await getProverPubKey({ proverBase, jwt, label });
       
       log(`${label} Encrypting proving request for delegated proving`);
 
-      const ciphertext = sdk.encryptProvingRequest(pubkey.public_key, provingRequest);
+      const ciphertext = sdk.encryptProvingRequest(pubKeyResponse.public_key, provingRequest);
 
       const payload = {
-        key_id: pubkey.key_id,
+        key_id: pubKeyResponse.key_id,
         ciphertext,
       };
 
       log(`${label} Submitting encrypted proving request to Provable delegated proving service`);
 
       const provingResponse = await sendEncryptedProvingRequest(
-        { proverBase, jwt, payload, label }
+        { proverBase, jwt, cookie: pubKeyResponse.cookie ?? null, payload, label }
       );
 
       // log(`${label} Proving response: ${JSON.stringify(provingResponse)}`);
