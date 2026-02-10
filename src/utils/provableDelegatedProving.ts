@@ -149,14 +149,14 @@ async function sendEncryptedProvingRequest({ proverBase, jwt, cookie, payload, l
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Authorization: jwt,
+    ...(cookie ? { Cookie: cookie } : {}),
   };
 
   const fetchOptions: RequestInit = {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
-    credentials: 'include',
-    ...(cookie ? { Cookie: cookie } : {}),
+    credentials: 'include'
   };
 
   const res = await fetchWithRetry(`${proverBase}/prove/encrypted`, fetchOptions);
