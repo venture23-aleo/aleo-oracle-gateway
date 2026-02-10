@@ -240,6 +240,7 @@ export async function executeWithProvableDelegatedProving({
     leoCliConfig.network,
     delegatedConfig.proverUrl
   );
+
   const programName = oracleConfig.aleoProgram.name;
   const baseFeeCredits = delegatedConfig.baseFeeCredits ?? 0.25;
   const priorityFeeCredits = delegatedConfig.priorityFeeCredits ?? 0;
@@ -248,24 +249,21 @@ export async function executeWithProvableDelegatedProving({
 
   const { programManager, sdk } = await getProvableContext();
 
+  const provingRequest = await programManager.provingRequest({
+    programName,
+    functionName,
+    baseFee: baseFeeCredits,
+    priorityFee: priorityFeeCredits,
+    privateFee,
+    inputs,
+    broadcast,
+  });
+  const jwt = await getProvableJwt({ proverBase, apiKey, consumerId, label });
+
   const func = async () => {
     try {
-      const jwt = await getProvableJwt({ proverBase, apiKey, consumerId, label });
-
       const pubkey = await getProverPubKey({ proverBase, jwt, label });
-
-      log(`${label} Building proving request (program=${programName}, function=${functionName}), public key=${pubkey.public_key}`);
-
-      const provingRequest = await programManager.provingRequest({
-        programName,
-        functionName,
-        baseFee: baseFeeCredits,
-        priorityFee: priorityFeeCredits,
-        privateFee,
-        inputs,
-        broadcast,
-      });
-
+      
       log(`${label} Encrypting proving request for delegated proving`);
 
       const ciphertext = sdk.encryptProvingRequest(pubkey.public_key, provingRequest);
